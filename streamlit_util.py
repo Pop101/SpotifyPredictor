@@ -1,13 +1,29 @@
 from PIL import Image 
 import streamlit as st
+import numpy as np
 from streamlit.components.v1 import html
 import os
 import base64
 
-def add_image(image_path, caption="", width=0, height=0):
-    image = Image.open(image_path)
+def add_image(image, caption="", width=0, height=0):
+    if type(image) == str:
+        if not os.path.isfile(image):
+            st.error(f"Image {image} not found")
+            return
+        image = Image.open(image)
+    
+    if 'PIL.' not in str(type(image)):
+        try:
+            image = Image.fromarray(image)
+        except:
+            st.error("Could not convert image to pillow image")
+            return
+    
+    # Resize unless width or height are 0
     if width * height:
         image.resize((width, height))
+    
+    # Render w/ caption
     st.image(image, caption=caption, use_column_width=True)
 
 def load_css(css_path):
@@ -224,15 +240,15 @@ def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500p
             var offsetY = e.clientY - parseInt(window.getComputedStyle(this).top);
             
             function mouseMoveHandler(e) {
-            el.style.top = (e.clientY - offsetY) + 'px';
-            el.style.left = (e.clientX - offsetX) + 'px';
+                el.style.top = (e.clientY - offsetY) + 'px';
+                el.style.left = (e.clientX - offsetX) + 'px';
             }
 
             function reset() {
-            el.classList.remove('active');
-            el.style.cursor = "grab"
-            window.removeEventListener('mousemove', mouseMoveHandler);
-            window.removeEventListener('mouseup', reset);
+                el.classList.remove('active');
+                el.style.cursor = "grab"
+                window.removeEventListener('mousemove', mouseMoveHandler);
+                window.removeEventListener('mouseup', reset);
             }
 
             window.addEventListener('mousemove', mouseMoveHandler);
@@ -247,10 +263,11 @@ def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500p
     <style>
         #draggable.active {
             cursor: grabbing !important;
-            filter: brightness(0.8);
+            /*filter: brightness(0.8);*/
         }
     </style>
     """
     
     # Inject the script and style
+    # Iframe actually helps us here
     html(wrapped + script + style, height=int(container_height[:-2]))

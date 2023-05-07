@@ -1,13 +1,14 @@
 
 # Core Pkgs
 import streamlit as st 
-from util import load_css, add_image, header
+from streamlit_util import load_css, add_image, header, render_draggable
+from data_analysis import load_data, categorical_to_original, train_decision_tree, visualize_decitree
+from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud
 
 # Data Anal Pkgs
 import pandas as pd 
 from pandasql import sqldf
 import numpy as np
-
 
 # Vizz Pkgs
 import matplotlib.pyplot as plt 
@@ -16,19 +17,13 @@ matplotlib.use("Agg")
 import seaborn as sns
 
 # Setup style and title
-st.set_page_config(
-    page_title="Song Popularity Analysis",
-    page_icon="📻", # Can also be an image. TODO make one
-    initial_sidebar_state="expanded",
-    menu_items={} # menu gets deleted
-)
+#st.set_page_config(
+#    page_title="Song Popularity Analysis",
+#    page_icon="📻", # Can also be an image. TODO make one
+#    initial_sidebar_state="expanded",
+#    menu_items={} # menu gets deleted
+#)
 load_css("style-inject.css")
-
-# Load the Data
-st.cache_data(ttl=3600, show_spinner=True)
-def load_data(name):
-    df = pd.read_csv(f"Data/{name}.csv")
-    return df
 
 # Setup sidebar text
 st.sidebar.markdown("""
@@ -37,7 +32,7 @@ st.sidebar.markdown("""
     
 # The page itself
 header("Song Popularity Analysis", element="h1")
-add_image("Images/GenreCloud.png", caption="Word cloud of feature importance")
+add_image(generate_genre_wordcloud())
 
 st.markdown(f"""
 ## Introduction
@@ -61,7 +56,7 @@ Here is a simple bar char of the feature importance from the random forest class
 ft_imp = load_data("FeatureImportance")
 sns.set_theme(style="whitegrid")
 sns.set_color_codes("pastel")
-sns.barplot(x="rf_importance", y="feature", data=ft_imp)
+sns.barplot(x="avg_importance", y="feature", data=ft_imp)
 st.pyplot()
 
 st.markdown("""
@@ -69,7 +64,24 @@ This is a word cloud of the feature importance. I thought it looked cool,
 and I *could*, therefore I *should*. Now I think it looks kinda bad tho.
 """)
 
-add_image("Images/FeatureCloud.png", caption="Word cloud of feature importance")
+add_image(generate_feature_wordcloud(), caption="Word cloud of feature importance")
+
+# Create an interactive decision tree
+header("Interactive Decision Tree", element="h2")
+pruned_data = load_data("SpotifyFeatures", categorical=True).drop(
+    ['artist_name', 'track_name', 'track_id', 'key', 'mode', 'time_signature', 'genre'],
+    axis=1
+)
+#  Bin the popularity scores
+pruned_data_readable = pruned_data.copy()
+pruned_data['popularity'] = pd.cut(pruned_data['popularity'], bins=[-1, 50, 75, 100], labels=[0, 1, 2])
+pruned_data_readable['popularity'] = pd.cut(pruned_data_readable['popularity'], bins=[-1, 50, 75, 100], labels=['Unpopular', 'Popular', 'Hit'])
+
+# Train and visualize the decision tree
+d_tree = train_decision_tree(pruned_data, 'popularity', max_depth=3)
+viz_svg = visualize_decitree(d_tree, pruned_data, 'popularity', pruned_data_readable)
+render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+100px', '-30px'))
+
 
 # Create a heatmap of feature correlations
 header("Feature Correlations")
@@ -78,8 +90,7 @@ st.markdown("""
 Here is a heatmap of the feature correlations.
 """)
 
-sp_dat = load_data("SpotifyFeatures")
-sp_dat = sp_dat.drop(['track_id', 'track_name', 'artist_name', 'genre'], axis=1)
+sp_dat = load_data("SpotifyFeatures", categorical=True)
 corr = sp_dat.corr()
 mask = np.diag(np.ones(len(corr)))
 sns.heatmap(corr, mask=mask, cmap='viridis', vmax=1, vmin=-1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": .5})

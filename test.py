@@ -11,6 +11,8 @@ iris = load_iris()
 clf = DecisionTreeClassifier()
 
 # Fit the classifier to the data
+print(iris.data.shape, iris.target.shape)
+print(iris.feature_names, iris.target_names)
 clf.fit(iris.data, iris.target)
 
 # Create a Streamlit app
@@ -82,7 +84,7 @@ st.components.v1.html(svg_html, height=800, scrolling=True)
 st.markdown("Click on a node to see the selected node ID.")
 
 # Try with utils
-from util import render_draggable
+from streamlit_util import render_draggable
 svg_string = viz.svg()
 gradient_div = "<div style='background: linear-gradient(to right, #ff0000, #0000ff); width: 200%; height: 200px;'></div>"
 render_draggable(gradient_div, 1.5)
