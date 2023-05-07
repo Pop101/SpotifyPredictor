@@ -214,10 +214,19 @@ def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500p
     Renders raw HTML in a draggable container.
     """
     
+    # Quick initial position validation
+    if len(initial_position) != 2:
+        raise ValueError("initial_position must be a tuple of 2 elements")
+    initial_position = list(initial_position)
+    if initial_position[0][0] not in ('+', '-'):
+        initial_position[0] = '-' + initial_position[0]
+    if initial_position[1][0] not in ('+', '-'):
+        initial_position[1] = '-' + initial_position[1]
+    
     # Wrap the html
     wrapped = f"""
          <div id="container" style='overflow: hidden; width: 100%; height: 100%; position: fixed; background-color:{background_color}; top:0; bottom:0; left:0; right:0;'>
-            <div id="draggable" style='position: relative; transform: scale({zoom_factor}); top:-{initial_position[0]}; left:-{initial_position[1]};'>
+            <div id="draggable" style='position: relative; transform: scale({zoom_factor}); top:{initial_position[0]}; left:{initial_position[1]};'>
                 {raw_html}
             </div>
         </div>

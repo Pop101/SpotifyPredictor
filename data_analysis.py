@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import hashlib
+import re
 
 from sklearn.linear_model import Lasso
 from sklearn.pipeline import make_pipeline
@@ -12,6 +13,11 @@ from sklearn.tree import DecisionTreeClassifier
 from dtreeviz.trees import dtreeviz
 from wordcloud import WordCloud
 
+def train_test_split(df, frac=0.2):
+    test = df.sample(frac=frac, axis=0, random_state=42)
+    train = df.drop(index=test.index)
+    return train, test
+
 @st.cache_data(ttl=3600, show_spinner=True)
 def __load_data(name):
     """Loads data. Private, exists to optimise caching"""
@@ -19,13 +25,27 @@ def __load_data(name):
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_data(name, categorical=True):
-    """Loads a given CSV by name from the ./Data folder. Optionally converts to categorical"""
+def load_data(name, categorical=True, pretty=False):
+    """Loads a given CSV by name from the ./Data folder. Optionally converts to categorical or prettifies strings"""
     df = __load_data(name)
+    
+    if pretty:
+        def strfix(str):
+            str = str.replace("_", " ").title().strip()
+            str_no_shorts = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str).strip()
+            return str_no_shorts if len(str_no_shorts) > 0.5 * len(str) else str
+        
+        # Replace all strings in the dataframe with a prettier version, including the index
+        for col in df.columns:
+            if df[col].dtype in (object, str):
+                df[col] = df[col].map(strfix)
+        df = df.rename(columns=strfix)
+    
     if not categorical:
         for col in df.columns:
             if df[col].dtype in (object, str):
                 df[col] = pd.Categorical(df[col]).codes
+                
     return df
 
 @st.cache_data(ttl=3600, show_spinner=True)
@@ -73,13 +93,14 @@ def visualize_decitree(_model, df, target, readable_df=None, max_depth=5):
     if readable_df is None:
         readable_df = df
     
-    strfix = lambda s: s.replace("_", " ").title()
+    strfix = lambda s: s.replace("_ms","").replace("_", " ").title()
     feature_names = list(map(strfix, readable_df.drop(target, axis=1).columns))
     class_names = list(map(strfix, readable_df[target].unique().astype(str)))
-    
-    viz = dtreeviz(_model, df.drop(target, axis=1), df[target], target_name=target, 
-               feature_names=feature_names, 
-               class_names=class_names)
+    p_target_name = strfix(target)
+    viz = dtreeviz(_model, df.drop(target, axis=1), df[target],
+                target_name=p_target_name,
+                feature_names=feature_names, 
+                class_names=class_names)
     return viz.svg()
 
 
@@ -125,9 +146,9 @@ def generate_genre_wordcloud():
 @st.cache_data(ttl=3600, show_spinner=True)
 def generate_feature_wordcloud():
     data = load_data("FeatureImportance")
-    data['feature'] = data['feature'].str.replace('duration_ms', 'Duration')
-    data['feature'] = data['feature'].apply(lambda x: x.replace('_',' ').title())
-    word_weights = data.set_index('feature').to_dict()['avg_importance']
+    data['Feature'] = data['Feature'].str.replace('duration_ms', 'Duration')
+    data['Feature'] = data['Feature'].apply(lambda x: x.replace('_',' ').title())
+    word_weights = data.set_index('Feature').to_dict()['avg_importance']
     return generate_wordcloud(word_weights)
     
     
@@ -139,28 +160,28 @@ def hash_matches_saved(hash):
     if not os.path.exists("Data/hash.txt"): return False
     return open("Data/hash.txt").read() == hash
 
-df = load_data("SpotifyFeatures", categorical=False)
+df = load_data("SpotifyFeatures", categorical=True)
 dataset_hash = hashlib.md5(df.to_csv().encode()).hexdigest()
 if not hash_matches_saved(dataset_hash):
     # Save the hash
     with open("Data/hash.txt", "w") as f:
         f.write(dataset_hash)
         
-    df_cat = load_data("SpotifyFeatures", categorical=True)
+    df_cat = load_data("SpotifyFeatures", categorical=False)
     
     print("Fitting with LASSO")
-    model = make_pipeline(StandardScaler(), Lasso(alpha=0.8, random_state=42, warm_start=True))
-    model.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
+    lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.8, random_state=42, warm_start=True))
+    lasso.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
     
     print("Fitting with Random Forest. May take up to 3min")
-    model = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=10, random_state=42, warm_start=True))
-    model.fit(df.drop('popularity', axis=1), df['popularity'])
+    forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=10, random_state=42, warm_start=True))
+    forest.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
     
     # Create a dataframe of feature importance
     feature_importance = pd.DataFrame({
         'Feature': df.drop('popularity', axis=1).columns,
-        'LASSO_Importance': model.steps[1][1].coef_,
-        'RandomForest_Importance': model.steps[1][1].feature_importances_
+        'LASSO_Importance': lasso.steps[1][1].coef_,
+        'RandomForest_Importance': forest.steps[1][1].feature_importances_
     })
     
     # Add a column for the average importance, standardizing each column before averaging
