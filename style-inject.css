@@ -4,8 +4,9 @@ footer {
     display: none !important;
 }
 
-/* Rounded corners on images */
-img {
+/* Rounded corners on images & other figures */
+img,
+iframe {
     border-radius: 5px;
     margin: 1ch 0;
 }
