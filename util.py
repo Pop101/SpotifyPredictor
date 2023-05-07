@@ -193,4 +193,64 @@ def header(text, element="h2"):
             )
     
     
+def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500px", initial_position:tuple=("0px", "60%"), background_color:str="white"):
+    """
+    Renders raw HTML in a draggable container.
+    """
     
+    # Wrap the html
+    wrapped = f"""
+         <div id="container" style='overflow: hidden; width: 100%; height: 100%; position: fixed; background-color:{background_color}; top:0; bottom:0; left:0; right:0;'>
+            <div id="draggable" style='position: relative; transform: scale({zoom_factor}); top:-{initial_position[0]}; left:-{initial_position[1]};'>
+                {raw_html}
+            </div>
+        </div>
+    """
+    
+    # Inject JS to make it draggable
+    script = """
+    <script>
+    window.onload = function() {
+        draggable(document.getElementById('draggable'));
+    }
+
+    function draggable(el) {
+        el.style.cursor = "grab"
+        el.addEventListener('mousedown', function(e) {
+            el.classList.add('active');
+            el.style.cursor = "grabbing"
+            
+            var offsetX = e.clientX - parseInt(window.getComputedStyle(this).left);
+            var offsetY = e.clientY - parseInt(window.getComputedStyle(this).top);
+            
+            function mouseMoveHandler(e) {
+            el.style.top = (e.clientY - offsetY) + 'px';
+            el.style.left = (e.clientX - offsetX) + 'px';
+            }
+
+            function reset() {
+            el.classList.remove('active');
+            el.style.cursor = "grab"
+            window.removeEventListener('mousemove', mouseMoveHandler);
+            window.removeEventListener('mouseup', reset);
+            }
+
+            window.addEventListener('mousemove', mouseMoveHandler);
+            window.addEventListener('mouseup', reset);
+        });
+    }
+    </script>
+    """
+    
+    # Add style to ensure cursor is a grab
+    style = """
+    <style>
+        #draggable.active {
+            cursor: grabbing !important;
+            filter: brightness(0.8);
+        }
+    </style>
+    """
+    
+    # Inject the script and style
+    html(wrapped + script + style, height=int(container_height[:-2]))

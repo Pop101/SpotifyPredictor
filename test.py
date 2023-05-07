@@ -26,29 +26,63 @@ viz = dtreeviz(clf, iris.data, iris.target,
                target_name='species',
                feature_names=iris.feature_names,
                class_names=list(iris.target_names),
-               fancy=False)
+               fancy=True)
 
 # Convert the SVG output to a string
 svg_string = viz.svg()
 
-# Create a unique ID for the SVG element
-svg_id = "my-svg"
-
-# Create a base64 encoded version of the SVG string
-svg_base64 = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
+# Hacky SVG overrides
+import re
+svg_string = svg_string.replace(" ", f"""
+    
+        id="figure" style="width: 300%; height: auto; position: absolute;"
+        
+""", 1)
 
 # Create the HTML for the SVG element
 svg_html = f"""
-    <div style='overflow: scroll; width: 100%; height: 800px;'>
-        <object data="data:image/svg+xml;base64,{svg_base64}" type="image/svg+xml" id="{svg_id}">
-            {svg_string}
-        </object>
+    <div id="container" style='overflow: none; width: 100%; height: 800px; position: fixed; left: -50%;'>
+        {svg_string}
     </div>
+    <script>
+""" + """
+window.onload = function() {
+  draggable(document.getElementById('figure'));
+}
+
+function draggable(el) {
+  el.addEventListener('mousedown', function(e) {
+    var offsetX = e.clientX - parseInt(window.getComputedStyle(this).left);
+    var offsetY = e.clientY - parseInt(window.getComputedStyle(this).top);
+    
+    function mouseMoveHandler(e) {
+        el.classList.add('active');
+      el.style.top = (e.clientY - offsetY) + 'px';
+      el.style.left = (e.clientX - offsetX) + 'px';
+    }
+
+    function reset() {
+      el.classList.remove('active');
+      window.removeEventListener('mousemove', mouseMoveHandler);
+      window.removeEventListener('mouseup', reset);
+    }
+
+    window.addEventListener('mousemove', mouseMoveHandler);
+    window.addEventListener('mouseup', reset);
+  });
+}
+
+</script>
 """
 
 # Render the SVG element using st.components.v1.html
-st.components.v1.html(svg_html)
-
+st.components.v1.html(svg_html, height=800, scrolling=True)
 
 # Add an explanation of how to interact with the tree
 st.markdown("Click on a node to see the selected node ID.")
+
+# Try with utils
+from util import render_draggable
+svg_string = viz.svg()
+gradient_div = "<div style='background: linear-gradient(to right, #ff0000, #0000ff); width: 200%; height: 200px;'></div>"
+render_draggable(gradient_div, 1.5)
