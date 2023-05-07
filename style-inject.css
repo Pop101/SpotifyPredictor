@@ -1,0 +1,43 @@
+/* delete disgusting elements */
+header,
+footer {
+    display: none !important;
+}
+
+/* Rounded corners on images */
+img {
+    border-radius: 5px;
+    margin: 1ch 0;
+}
+
+/* spotify style background */
+.main {
+    background: linear-gradient(180deg, rgba(52, 52, 52, 1) 0%, rgba(25, 20, 20, 1) 100%);
+}
+
+/* spotify colors in every place possible */
+body {
+    --brand-color: #1DB954;
+    --accent-color: #df317f;
+}
+
+a,
+em {
+    color: var(--brand-color) !important;
+}
+
+b,
+strong {
+    color: var(--accent-color) !important;
+}
+
+/* Table colors */
+tr,
+th,
+td {
+    border: none !important;
+}
+
+thead {
+    border-bottom: 0.9px solid #1DB954;
+}

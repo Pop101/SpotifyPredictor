@@ -1,0 +1,15 @@
+[theme]
+base="light"
+primaryColor = "#1DB954"
+backgroundColor = "#191414"
+secondaryBackgroundColor = "#000000"
+textColor = "#DCDCDC"
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS=true
+port = 1337
+
+[deprecation]
+showPyplotGlobalUse = false
