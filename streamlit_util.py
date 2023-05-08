@@ -129,11 +129,11 @@ def header(text, element="h2"):
     # Inject JS that keeps track of the current section,
     # marked when this header is passed the verticle halfway mark
     
-    if len(headers_map) == 1:
+    if True:
         inject_js("""
                 console.log("hello");
-                var current_header = 0;
-                var headers_map = new Map();
+                var current_header = current_header || 0;
+                var headers_map = headers_map || new Map();
                 
                 // Add scroll event listeners to all elements
                 var elements = document.querySelectorAll(".stApp");
