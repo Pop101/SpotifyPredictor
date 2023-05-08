@@ -81,9 +81,9 @@ pruned_data_readable['popularity'] = pd.cut(pruned_data_readable['popularity'], 
 
 # Train and visualize the decision tree
 train, test = train_test_split(pruned_data, 0.3)
-d_tree = train_decision_tree(train, 'popularity', max_depth=4)
+d_tree = train_decision_tree(train, 'popularity', prune=True, max_depth=4)
 viz_svg = visualize_decitree(d_tree, train, 'popularity', pruned_data_readable)
-render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+215px', '630px'))
+render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+215px', '400px'))
 
 # Show the accuracy of the decision tree
 accuracy = d_tree.score(test.drop('popularity', axis=1), test['popularity'])

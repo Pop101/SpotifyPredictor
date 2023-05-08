@@ -13,6 +13,8 @@ from sklearn.tree import DecisionTreeClassifier
 from dtreeviz.trees import dtreeviz
 from wordcloud import WordCloud
 
+from tree_util import prune_duplicate_leaves
+
 def train_test_split(df, frac=0.2):
     test = df.sample(frac=frac, axis=0, random_state=42)
     train = df.drop(index=test.index)
@@ -76,17 +78,18 @@ def categorical_to_original(df):
     return __category_keys(df)(df)
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def train_decision_tree(df, target, max_depth=5):
+def train_decision_tree(df, target, prune=False, **kwargs):
     """
     Trains a decision tree on the given dataframe
     """
-    model = DecisionTreeClassifier(max_depth=max_depth)
+    model = DecisionTreeClassifier(random_state=42, **kwargs)
     model = model.fit(df.drop(target, axis=1).values, df[target].values)
+    prune_duplicate_leaves(model)
     return model    
 
 # ---- Utility Visualisation Functions ---- #
 @st.cache_data(ttl=3600, show_spinner=True)
-def visualize_decitree(_model, df, target, readable_df=None, max_depth=5):
+def visualize_decitree(_model, df, target, readable_df=None):
     """
     Visualises a decision tree
     """
