@@ -17,12 +17,12 @@ matplotlib.use("Agg")
 import seaborn as sns
 
 # Setup style and title
-#st.set_page_config(
-#    page_title="Song Popularity Analysis",
-#    page_icon="📻", # Can also be an image. TODO make one
-#    initial_sidebar_state="expanded",
-#    menu_items={} # menu gets deleted
-#)
+st.set_page_config(
+    page_title="Song Popularity Analysis",
+    page_icon="📻", # Can also be an image. TODO make one
+    initial_sidebar_state="expanded",
+    menu_items={} # menu gets deleted
+)
 load_css("style-inject.css")
 
 # Setup sidebar text
