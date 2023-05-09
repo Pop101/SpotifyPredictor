@@ -2,8 +2,8 @@
 # Core Pkgs
 import streamlit as st 
 from streamlit_util import load_css, add_image, header, render_draggable
-from data_analysis import load_data, categorical_to_original, train_decision_tree, visualize_decitree, train_test_split
-from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud
+from data_analysis import load_data, categorical_to_original, train_decision_tree, train_test_split, bin_series
+from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud, visualize_decitree
 
 # Data Anal Pkgs
 import pandas as pd 
@@ -52,11 +52,13 @@ feature significance.
 
 Here is a simple bar char of the feature importance from the random forest classifier:
 """)
-# Simple bar chart of feature importance
+# Simple bar chart of feature importance. Remove y-axis labels
 ft_imp = load_data("FeatureImportance", pretty=True)
 sns.set_theme(style="whitegrid")
 sns.set_color_codes("pastel")
+print(ft_imp.head())
 sns.barplot(x="Importance", y="Feature", data=ft_imp, label="Importance", color="b")
+plt.xticks([])
 st.pyplot()
 
 st.markdown("""
@@ -72,18 +74,18 @@ pruned_data = load_data("SpotifyFeatures").drop(
     # These columns are not needed for the decision tree - they are illegible to a user
     ['artist_name', 'track_name', 'track_id', 'key', 'mode', 'time_signature', 'genre'],
     axis=1
-)
+).sort_values(by='popularity')
 
 #  Bin the popularity scores
 pruned_data_readable = pruned_data.copy()
-pruned_data['popularity'] = pd.cut(pruned_data['popularity'], bins=[-1, 25, 70, 100], labels=[0, 1, 2])
-pruned_data_readable['popularity'] = pd.cut(pruned_data_readable['popularity'], bins=[-1, 25, 70, 100], labels=['Unpopular', 'Popular', 'Hit'])
+pruned_data['popularity'] = bin_series(pruned_data['popularity'], {1: 15, 2: 60, 3: 15})
+pruned_data_readable['popularity'] = pruned_data['popularity'].replace({1: "Unpopular", 2: "Popular", 3: "Very Popular"})
 
 # Train and visualize the decision tree
 train, test = train_test_split(pruned_data, 0.3)
 d_tree = train_decision_tree(train, 'popularity', prune=True, max_depth=4)
-viz_svg = visualize_decitree(d_tree, train, 'popularity', pruned_data_readable)
-render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+215px', '400px'))
+viz_svg = visualize_decitree(d_tree, train, 'popularity', pruned_data_readable, cmap='YlGnBu')
+render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+230px', '350px'))
 
 # Show the accuracy of the decision tree
 accuracy = d_tree.score(test.drop('popularity', axis=1), test['popularity'])
@@ -102,5 +104,5 @@ Here is a heatmap of the feature correlations.
 sp_dat = load_data("SpotifyFeatures", categorical=False, pretty=True)
 corr = sp_dat.corr()
 mask = np.diag(np.ones(len(corr)))
-sns.heatmap(corr, mask=mask, cmap='YlGnBu', vmax=1, vmin=-1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": .5})
+sns.heatmap(corr, mask=mask, cmap='YlGnBu', annot=False, vmin=-1, vmax=1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": 0.6})
 st.pyplot()

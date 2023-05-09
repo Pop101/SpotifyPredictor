@@ -20,6 +20,10 @@ The files in the [public](/public) directory are deployed to: [https://3pt.leibm
 
 This webpage uses open-source Spotify data to predict a song's success. It extracts relevant features and develops models based on metrics such as popularity and play count. Users can interact with the dataset and experiment with different models. The project aims to help musicians and music enthusiasts understand the factors that contribute to a song's success.
 
+
+We used an ensemble of methods
+
+
 ## Technologies
 
 To create this, we used:

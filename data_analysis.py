@@ -4,11 +4,16 @@ import os
 import hashlib
 import re
 
+import matplotlib.colors as colors
+import matplotlib.cm as cm
+import numpy as np
+
 from sklearn.linear_model import Lasso
 from sklearn.pipeline import make_pipeline
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.decomposition import PCA, TruncatedSVD
 
 from dtreeviz.trees import dtreeviz
 from wordcloud import WordCloud
@@ -77,6 +82,32 @@ def categorical_to_original(df):
     """
     return __category_keys(df)(df)
 
+def bin_series(series, bins):
+    """
+    Bins a series of data by percental bins
+    `bins` can be a dict of {bin_name: percent} or a list of bin values
+    Lists will be distributed evenly
+    All bins will be assigned low-to-high (eg. first bin will be lowest values)
+    """
+    if isinstance(bins, list):
+        bins = {bin: 1/len(bins) for bin in bins}
+    if not isinstance(bins, dict):
+        raise TypeError("bins must be a dict or list")
+    
+    # Quick normalize
+    sum_bins = sum(bins.values())
+    bins = {bin: percent/sum_bins for bin, percent in bins.items()}
+    
+    # Make the bins monotonic
+    bins = {bin: sum(list(bins.values())[:i+1]) for i, bin in enumerate(bins)}
+    
+    # Pad bins with 0 and 1
+    percentiles = [0] + list(bins.values())
+    labels = list(bins.keys())
+    
+    # Divide the series into bins
+    return pd.cut(series, bins=series.quantile(percentiles).values, labels=labels, include_lowest=True)
+
 @st.cache_data(ttl=3600, show_spinner=True)
 def train_decision_tree(df, target, prune=False, **kwargs):
     """
@@ -89,21 +120,32 @@ def train_decision_tree(df, target, prune=False, **kwargs):
 
 # ---- Utility Visualisation Functions ---- #
 @st.cache_data(ttl=3600, show_spinner=True)
-def visualize_decitree(_model, df, target, readable_df=None):
+def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     """
     Visualises a decision tree
     """
     if readable_df is None:
         readable_df = df
+    if isinstance(cmap, str):
+        cmap = cm.get_cmap(cmap)
     
+    # Setup classes
     strfix = lambda s: s.replace("_ms","").replace("_", " ").title()
     feature_names = list(map(strfix, readable_df.drop(target, axis=1).columns))
     class_names = list(map(strfix, readable_df[target].unique().astype(str)))
     p_target_name = strfix(target)
+    
+    # Setup colors
+    if 'matplotlib.colors' in str(type(cmap)).lower():
+        # Draw colors from the colormap
+        colors_list = cmap(np.linspace(0.05, 0.8, len(class_names)))
+        cmap = [colors.rgb2hex(color) for color in colors_list]
+    
     viz = dtreeviz(_model, df.drop(target, axis=1), df[target],
                 target_name=p_target_name,
                 feature_names=feature_names, 
-                class_names=class_names)
+                class_names=class_names,
+                colors={'classes': [cmap] * (1+len(class_names))},)
     return viz.svg()
 
 
@@ -149,9 +191,9 @@ def generate_genre_wordcloud():
 @st.cache_data(ttl=3600, show_spinner=True)
 def generate_feature_wordcloud():
     data = load_data("FeatureImportance")
-    data['Feature'] = data['Feature'].str.replace('duration_ms', 'Duration')
-    data['Feature'] = data['Feature'].apply(lambda x: x.replace('_',' ').title())
-    word_weights = data.set_index('Feature').to_dict()['avg_importance']
+    data['feature'] = data['feature'].str.replace('duration_ms', 'Duration')
+    data['feature'] = data['feature'].apply(lambda x: x.replace('_',' ').title())
+    word_weights = data.set_index('feature').to_dict()['avg_importance']
     return generate_wordcloud(word_weights)
     
     
@@ -164,12 +206,11 @@ def hash_matches_saved(hash):
     return open("Data/hash.txt").read() == hash
 
 df = load_data("SpotifyFeatures", categorical=True)
-dataset_hash = hashlib.md5(df.to_csv().encode()).hexdigest()
+dataset_hash = hashlib.new('md5')
+dataset_hash.update(df.to_csv().encode('utf-8'))
+dataset_hash.update(open("data_analysis.py").read().encode('utf-8'))
+dataset_hash = dataset_hash.hexdigest()
 if not hash_matches_saved(dataset_hash):
-    # Save the hash
-    with open("Data/hash.txt", "w") as f:
-        f.write(dataset_hash)
-        
     df_cat = load_data("SpotifyFeatures", categorical=False)
     
     print("Fitting with LASSO")
@@ -180,18 +221,30 @@ if not hash_matches_saved(dataset_hash):
     forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=10, random_state=42, warm_start=True))
     forest.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
     
+    print("Fitting PCA importance")
+    pca = make_pipeline(StandardScaler(), PCA(n_components=17))
+    pca.fit(df_cat.drop('popularity', axis=1))
+    
     # Create a dataframe of feature importance
     feature_importance = pd.DataFrame({
-        'Feature': df.drop('popularity', axis=1).columns,
-        'LASSO_Importance': lasso.steps[1][1].coef_,
-        'RandomForest_Importance': forest.steps[1][1].feature_importances_
+        'feature': df.drop('popularity', axis=1).columns,
+        'lasso_importance': lasso.steps[1][1].coef_,
+        'randomforest_importance': forest.steps[1][1].feature_importances_,
+        'pcadims_importance': pca.steps[1][1].explained_variance_ratio_
     })
     
     # Add a column for the average importance, standardizing each column before averaging
-    standard_rf_importance = (feature_importance['RandomForest_Importance'] - feature_importance['RandomForest_Importance'].mean()) / feature_importance['RandomForest_Importance'].std()
-    standard_lasso_importance = (feature_importance['LASSO_Importance'] - feature_importance['LASSO_Importance'].mean()) / feature_importance['LASSO_Importance'].std()
-    feature_importance['avg_importance'] = abs(standard_rf_importance + standard_lasso_importance) / 2
+    standard_rf_importance = (feature_importance['randomforest_importance'] - feature_importance['randomforest_importance'].mean()) / feature_importance['randomforest_importance'].std()
+    standard_lasso_importance = (feature_importance['lasso_importance'] - feature_importance['lasso_importance'].mean()) / feature_importance['lasso_importance'].std()
+    standard_pcadims_importance = (feature_importance['pcadims_importance'] - feature_importance['pcadims_importance'].mean()) / feature_importance['pcadims_importance'].std()
+    
+    feature_importance['avg_importance'] = (abs(standard_rf_importance) + abs(standard_lasso_importance) + abs(standard_pcadims_importance)) / 3
     feature_importance = feature_importance.sort_values('avg_importance', ascending=False)
     
     # Save the feature importance DB
     feature_importance.to_csv("Data/FeatureImportance.csv", index=False)
+    
+    # Save the hash
+    with open("Data/hash.txt", "w") as f:
+        f.write(dataset_hash)
+        
