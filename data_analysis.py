@@ -102,11 +102,17 @@ def bin_series(series, bins):
     bins = {bin: sum(list(bins.values())[:i+1]) for i, bin in enumerate(bins)}
     
     # Pad bins with 0 and 1
-    percentiles = [0] + list(bins.values())
-    labels = list(bins.keys())
+    if 0 not in bins.values():
+        percentiles = [0] + list(bins.values())
+        labels = list(bins.keys())
+    else:
+        percentiles = list(bins.values())
+        labels = list(bins.keys())[1:]
+    
+    # TODO: remove duplicate percentiles and match labels
     
     # Divide the series into bins
-    return pd.cut(series, bins=series.quantile(percentiles).values, labels=labels, include_lowest=True)
+    return pd.cut(series, bins=series.quantile(percentiles).values, labels=labels, include_lowest=True, duplicates="drop")
 
 @st.cache_data(ttl=3600, show_spinner=True)
 def train_decision_tree(df, target, prune=False, **kwargs):
