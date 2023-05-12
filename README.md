@@ -54,4 +54,4 @@ streamlit run app.py
 Make sure both streamlit and graphviz installed correctly. If not, try
 again with conda or another build system.
 
-The website should be available at [localhost:1337](http://localhost:1337)
+The website should be available at [localhost:8463](http://localhost:8463)

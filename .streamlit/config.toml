@@ -9,7 +9,7 @@ font = "sans serif"
 [server]
 headless = true
 enableCORS=true
-port = 1337
+port = 8463
 
 [deprecation]
 showPyplotGlobalUse = false
