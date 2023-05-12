@@ -20,14 +20,12 @@ import charttheme
 alt.themes.enable('cs')
 
 # Setup style and title
-try:
-    st.set_page_config(
-        page_title="Song Popularity Analysis",
-        page_icon="📻", # Can also be an image. TODO make one
-        initial_sidebar_state="expanded",
-        menu_items={} # menu gets deleted
-    )
-except st.errors.StreamlitAPIException: pass
+st.set_page_config(
+    page_title="Song Popularity Analysis",
+    page_icon="📻", # Can also be an image. TODO make one
+    initial_sidebar_state="expanded",
+    menu_items={} # menu gets deleted
+)
 
 load_css("style-inject.css")
 
