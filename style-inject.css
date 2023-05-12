@@ -6,9 +6,17 @@ footer {
 
 /* Rounded corners on images & other figures */
 img,
-iframe {
+iframe,
+.chart-wrapper {
     border-radius: 5px;
     margin: 1ch 0;
+}
+
+/* Altair chart wrapper fixup (manually padded) */
+.chart-wrapper {
+    padding: 2ch 0.5ch;
+    padding-bottom: 0;
+    background: white;
 }
 
 /* spotify style background */

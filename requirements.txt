@@ -6,3 +6,5 @@ matplotlib
 pandasql
 wordcloud
 dtreeviz==1.4.0
+altair
+altair_theme
