@@ -4,7 +4,9 @@
 Team members:
 Seung Won Seo, [Leon Leibmann](leibmann.org), Emelie Kyes, Oscar Wang
 
-The files in the [public](/public) directory are deployed to: [https://3pt.leibmann.org](https://3pt.leibmann.org)
+The currently hosted and deployed to a raspberry pi in my basement,
+visit it here: [spotify-data.leibmann.org](spotify-data.leibmann.org)
+It may be slow to load, though.
 
 ## Table of Contents
 
