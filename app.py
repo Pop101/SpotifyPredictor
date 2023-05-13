@@ -7,7 +7,6 @@ from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud, 
 
 # Data Anal Pkgs
 import pandas as pd 
-from pandasql import sqldf
 import numpy as np
 
 # Vizz Pkgs

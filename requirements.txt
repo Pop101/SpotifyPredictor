@@ -3,7 +3,6 @@ pandas
 numpy
 seaborn
 matplotlib
-pandasql
 wordcloud
 dtreeviz==1.4.0
 altair==4.2.2
