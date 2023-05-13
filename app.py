@@ -86,6 +86,7 @@ features but not necessarily the same artist.
 Because genre seems to be the biggest single indicator,
 let's examine the popularity of each genre:
 """)
+
 data = load_data("SpotifyFeatures")
 data = data.groupby("genre").mean()
 data = data.sort_values(by="popularity", ascending=False).reset_index()
@@ -155,11 +156,11 @@ def gen_genredata_plot(genre):
     genre_data['Feature'] = genre_data['Feature'].astype(str)
 
     # Add feature names column
-    chart = alt.Chart(genre_data).mark_bar().encode(
+    chart = alt.Chart(genre_data).mark_boxplot(extent="min-max").encode(
         x=alt.X('Feature:N', title=None, axis=alt.Axis(labelAngle=-45)),
         y=alt.Y('mean(value):Q', title='Mean Value'),
         color=alt.Color('Feature:N', legend=None),
-        tooltip=['Feature', 'mean(value)']
+        tooltip=alt.Tooltip(['Feature', 'mean(value)'], format='.2f', title='Mean and IQR'),
     ).properties(
         width=200,
         height=200
