@@ -1,5 +1,8 @@
+# Install project dependencies, without streamlit
+sudo pip3 install $(grep -v streamlit requirements.txt)
+
 # Install streamlit dependencies, without pyarrow
-pip3 install 'altair<5,>=3.2.0' \
+sudo pip3 install 'altair<5,>=3.2.0' \
     'blinker>=1.0.0' \
     'cachetools>=4.0' \
     'click>=7.0' \
@@ -22,10 +25,10 @@ pip3 install 'altair<5,>=3.2.0' \
     'pympler>=0.9' \
     'tenacity<9,>=8.0.0' \
     'validators>=0.2' \
-    'altair==4.2.2'
+    'tornado'
 
 # Install steamlit without deps
-pip3 install streamlit --no-dependencies
+sudo pip3 install streamlit --no-dependencies
 
 # Grab a fake pyarrow
 [ -f mock_pyarrow.py ] || wget https://raw.githubusercontent.com/dorinclisu/camplayer_streamlit/main/src/mock_pyarrow.py
@@ -34,7 +37,9 @@ pip3 install streamlit --no-dependencies
 PYTHON_CODE=$(cat <<END
 
 import mock_pyarrow
-from streamlit.web.cli import main
+
+try: from streamlit.web.cli import main
+except: from streamlit.cli import main
 
 main(prog_name='streamlit')
 
@@ -42,4 +47,4 @@ END
 )
 
 
-python3 -c "$PYTHON_CODE" "$@"
+sudo python3 -c "$PYTHON_CODE" "$@"
