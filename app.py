@@ -69,7 +69,7 @@ chart = alt.Chart(ft_imp).mark_bar().encode(
     color=alt.Color("Importance", legend=None, scale=alt.Scale(scheme="goldgreen")),
     tooltip=["Feature", "Importance"]
 ).properties(
-    title="Feature Importance",
+    title="Affect on Song Popularity by Feature",
 )
 st.altair_chart(chart, use_container_width=True, theme=None)
 
