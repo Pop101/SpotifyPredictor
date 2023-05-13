@@ -159,10 +159,10 @@ def gen_genredata_plot(genre):
     ).properties(
         title=f'Average Feature Values for {genre} Songs, By Popularity',
     )
-gen_genredata_plot(genre)
+    # Plot figure
+    st.altair_chart(chart,use_container_width=True, theme=None)
 
-# Plot figure
-st.altair_chart(chart,use_container_width=True, theme=None)
+gen_genredata_plot(genre)
 
 st.markdown("""
 You can use this widget to examine the feature profile of each genre.
