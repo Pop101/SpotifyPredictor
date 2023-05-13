@@ -124,7 +124,7 @@ genre = st.selectbox(
 
 # Create a plot of the feature averages for the selected genre,
 # faceted on popularity category
-@st.cache
+@st.cache_data(show_spinner=True)
 def gen_genredata_plot(genre):
     genre_data = load_data("SpotifyFeatures", pretty=True)
     genre_data = genre_data.where(genre_data['Genre'] == genre).dropna()
