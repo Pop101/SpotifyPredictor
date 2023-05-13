@@ -124,39 +124,42 @@ genre = st.selectbox(
 
 # Create a plot of the feature averages for the selected genre,
 # faceted on popularity category
-genre_data = load_data("SpotifyFeatures", pretty=True)
-genre_data = genre_data.where(genre_data['Genre'] == genre).dropna()
-genre_data = genre_data.sort_values(by='Popularity')
-genre_data['Popularity'] = bin_series(genre_data['Popularity'], {'Unpopular': 25, 'Popular': 60, 'Hits': 15})
+@st.cache
+def gen_genredata_plot(genre):
+    genre_data = load_data("SpotifyFeatures", pretty=True)
+    genre_data = genre_data.where(genre_data['Genre'] == genre).dropna()
+    genre_data = genre_data.sort_values(by='Popularity')
+    genre_data['Popularity'] = bin_series(genre_data['Popularity'], {'Unpopular': 25, 'Popular': 60, 'Hits': 15})
 
-# Normalize the loudness feature, setting all values from 0 to 1
-genre_data['LoudnessDB'] = genre_data['Loudness']
-genre_data['Loudness'] = genre_data['Loudness'].apply(lambda x: (x - genre_data['Loudness'].min()) / (genre_data['Loudness'].max() - genre_data['Loudness'].min()))
+    # Normalize the loudness feature, setting all values from 0 to 1
+    genre_data['LoudnessDB'] = genre_data['Loudness']
+    genre_data['Loudness'] = genre_data['Loudness'].apply(lambda x: (x - genre_data['Loudness'].min()) / (genre_data['Loudness'].max() - genre_data['Loudness'].min()))
 
-# For each feature, calculate the average for each popularity category
-#genre_data = genre_data.groupby(['Popularity']).mean().reset_index()
-genre_data = pd.melt(genre_data, id_vars=['Popularity'], value_vars=[
-    'Acousticness', 'Danceability', 'Instrumentalness',
-    'Liveness', 'Speechiness', 'Valence', 'Loudness'],
-var_name='Feature')
+    # For each feature, calculate the average for each popularity category
+    #genre_data = genre_data.groupby(['Popularity']).mean().reset_index()
+    genre_data = pd.melt(genre_data, id_vars=['Popularity'], value_vars=[
+        'Acousticness', 'Danceability', 'Instrumentalness',
+        'Liveness', 'Speechiness', 'Valence', 'Loudness'],
+    var_name='Feature')
 
-# convert dtypes to string (dont ask me why)
-genre_data['Popularity'] = genre_data['Popularity'].astype(str)
-genre_data['Feature'] = genre_data['Feature'].astype(str)
+    # convert dtypes to string (dont ask me why)
+    genre_data['Popularity'] = genre_data['Popularity'].astype(str)
+    genre_data['Feature'] = genre_data['Feature'].astype(str)
 
-# Add feature names column
-chart = alt.Chart(genre_data).mark_bar().encode(
-    x=alt.X('Feature:N', title=None, axis=alt.Axis(labelAngle=-45)),
-    y=alt.Y('mean(value):Q', title='Mean Value'),
-    color=alt.Color('Feature:N', legend=None),
-).properties(
-    width=200,
-    height=200
-).facet(
-    column=alt.Column('Popularity:N', title=None)
-).properties(
-    title=f'Average Feature Values for {genre}, By Popularity',
-)
+    # Add feature names column
+    chart = alt.Chart(genre_data).mark_bar().encode(
+        x=alt.X('Feature:N', title=None, axis=alt.Axis(labelAngle=-45)),
+        y=alt.Y('mean(value):Q', title='Mean Value'),
+        color=alt.Color('Feature:N', legend=None),
+    ).properties(
+        width=200,
+        height=200
+    ).facet(
+        column=alt.Column('Popularity:N', title=None)
+    ).properties(
+        title=f'Average Feature Values for {genre} Songs, By Popularity',
+    )
+gen_genredata_plot(genre)
 
 # Plot figure
 st.altair_chart(chart,use_container_width=True, theme=None)

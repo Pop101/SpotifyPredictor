@@ -25,13 +25,13 @@ def train_test_split(df, frac=0.2):
     train = df.drop(index=test.index)
     return train, test
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def __load_data(name):
     """Loads data. Private, exists to optimise caching"""
     return pd.read_csv(f"Data/{name}.csv")
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def load_data(name, categorical=True, pretty=False):
     """Loads a given CSV by name from the ./Data folder. Optionally converts to categorical or prettifies strings"""
     df = __load_data(name)
@@ -55,7 +55,7 @@ def load_data(name, categorical=True, pretty=False):
                 
     return df
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def __category_keys(df):
     """
     Returns a function that converts a categorical dataframe back to strings
@@ -75,7 +75,7 @@ def __category_keys(df):
         return df
     return __convert_to_strings
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def categorical_to_original(df):
     """
     Converts a categorical dataframe back to strings
@@ -114,18 +114,18 @@ def bin_series(series, bins):
     # Divide the series into bins
     return pd.cut(series, bins=series.quantile(percentiles).values, labels=labels, include_lowest=True, duplicates="drop")
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def train_decision_tree(df, target, prune=False, **kwargs):
     """
     Trains a decision tree on the given dataframe
     """
     model = DecisionTreeClassifier(random_state=42, **kwargs)
     model = model.fit(df.drop(target, axis=1).values, df[target].values)
-    prune_duplicate_leaves(model)
+    if prune: prune_duplicate_leaves(model)
     return model    
 
 # ---- Utility Visualisation Functions ---- #
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     """
     Visualises a decision tree
@@ -155,7 +155,7 @@ def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     return viz.svg()
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def generate_wordcloud(input, width=800, height=400, colormap='YlGnBu'):
     if type(input) is str:
         w_freq = input.split()
@@ -187,21 +187,20 @@ def generate_wordcloud(input, width=800, height=400, colormap='YlGnBu'):
 
 
 # --- Static, Specific Visualisations --- #
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def generate_genre_wordcloud():
     data = load_data("SpotifyFeatures", categorical=True)
     data = data.groupby('genre').mean()
     word_weights = data['popularity'].to_dict()
     return generate_wordcloud(word_weights)
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(show_spinner=True)
 def generate_feature_wordcloud():
     data = load_data("FeatureImportance")
     data['feature'] = data['feature'].str.replace('duration_ms', 'Duration')
     data['feature'] = data['feature'].apply(lambda x: x.replace('_',' ').title())
     word_weights = data.set_index('feature').to_dict()['avg_importance']
     return generate_wordcloud(word_weights)
-    
     
 
 # On module load: Generate Feature Importance 
