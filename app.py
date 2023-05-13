@@ -159,6 +159,7 @@ def gen_genredata_plot(genre):
         x=alt.X('Feature:N', title=None, axis=alt.Axis(labelAngle=-45)),
         y=alt.Y('mean(value):Q', title='Mean Value'),
         color=alt.Color('Feature:N', legend=None),
+        tooltip=['Feature', 'mean(value)']
     ).properties(
         width=200,
         height=200
