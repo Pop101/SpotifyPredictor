@@ -17,6 +17,7 @@ import seaborn as sns
 import altair as alt
 import charttheme
 alt.themes.enable('cs')
+sns.set_theme(style="whitegrid")
 
 # Setup style and title
 st.set_page_config(
@@ -58,12 +59,19 @@ the many features of the dataset.
 
 Performing this analysis, we can see the following feature importance:
 """)
-# Simple bar chart of feature importance. Remove y-axis labels
+
+# Simple bar chart of feature importance.
 ft_imp = load_data("FeatureImportance", pretty=True)
-sns.set_theme(style="whitegrid")
-sns.barplot(x="Importance", y="Feature", data=ft_imp, label="Importance", color="b")
-plt.xticks([])
-st.pyplot()
+
+chart = alt.Chart(ft_imp).mark_bar().encode(
+    y=alt.Y("Feature:N", sort="-x", title="Feature"),
+    x=alt.X("Importance:Q", title="Importance", axis=alt.Axis(labels=False)),
+    color=alt.Color("Importance", legend=None, scale=alt.Scale(scheme="goldgreen")),
+    tooltip=["Feature", "Importance"]
+).properties(
+    title="Feature Importance",
+)
+st.altair_chart(chart, use_container_width=True, theme=None)
 
 st.markdown("""
 Note how Genre is the most important indicator of popularity. This is because
