@@ -13,3 +13,6 @@ port = 8463
 
 [deprecation]
 showPyplotGlobalUse = false
+
+[global]
+dataFrameSerialization = "legacy"
