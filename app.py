@@ -138,7 +138,7 @@ genre_data['Loudness'] = genre_data['Loudness'].apply(lambda x: (x - genre_data[
 genre_data = pd.melt(genre_data, id_vars=['Popularity'], value_vars=[
     'Acousticness', 'Danceability', 'Instrumentalness',
     'Liveness', 'Speechiness', 'Valence', 'Loudness'],
-var_name='Feature')
+var_name='Feature').astype('object')
 
 # Add feature names column
 chart = alt.Chart(genre_data).mark_bar().encode(
