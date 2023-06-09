@@ -19,6 +19,28 @@ iframe,
     background: white;
 }
 
+.vega-embed summary {
+    bottom: 16px;
+    top: unset;
+    right: -8px;
+    opacity: 0;
+    transition: opacity 0.13s ease-in;
+}
+
+.vega-embed .vega-actions::after,
+.vega-embed .vega-actions::before {
+    top: unset;
+    bottom: -14px;
+    border-bottom-color: transparent;
+    border-top-color: white;
+}
+
+.vega-embed .vega-actions {
+    top: unset;
+    bottom: 64px;
+    right: -18px;
+}
+
 /* spotify style background */
 .main {
     background: linear-gradient(180deg, rgba(52, 52, 52, 1) 0%, rgba(25, 20, 20, 1) 100%);
@@ -32,12 +54,12 @@ body {
 
 a,
 em {
-    color: var(--brand-color) !important;
+    color: var(--brand-color);
 }
 
 b,
 strong {
-    color: var(--accent-color) !important;
+    color: var(--accent-color);
 }
 
 /* Table colors */
