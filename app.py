@@ -166,9 +166,15 @@ def gen_genredata_plot(genre):
         x=alt.X('Feature:N', title=None, axis=alt.Axis(labelAngle=-45)),
         y=alt.Y('mean(value):Q', title='Mean Value'),
         color=alt.Color('Feature:N', legend=None),
-        tooltip=alt.Tooltip(['Feature', 'mean(value)'], format='.2f', title='Mean and IQR'),
+        # yo why are multiple tooltips broken?
+        # https://github.com/vega/vega-lite/issues/7918
+        tooltip=[
+            alt.Tooltip('Feature:N', title='Feature', format='.2f'),
+            alt.Tooltip('mean(value):Q', title='Center Value', format='.2f'),
+            alt.Tooltip('iqr(value):Q', title='Spread', format='.2f'),
+        ]
     ).properties(
-        width=200,
+        width=200,  
         height=200
     ).facet(
         column=alt.Column('Popularity:N', title=None)
@@ -243,7 +249,7 @@ numeric values associated and therefore do not contribute to the correlation mat
 
 sp_dat = load_data("SpotifyFeatures")
 sp_dat = prettify_data(sp_dat)
-corr = sp_dat.corr()
+corr = sp_dat.corr(numeric_only=True)
 mask = np.diag(np.ones(len(corr)))
 sns.heatmap(corr, mask=mask, cmap='YlGnBu', annot=False, vmin=-1, vmax=1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": 0.6})
 st.pyplot()
