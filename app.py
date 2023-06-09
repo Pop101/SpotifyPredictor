@@ -2,8 +2,8 @@
 # Core Pkgs
 import streamlit as st 
 from streamlit_util import load_css, add_image, header, render_draggable
-from data_analysis import load_data, categorical_to_original, train_decision_tree, train_test_split, bin_series
-from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud, visualize_decitree
+from data_analysis import load_data, categorical_to_original, train_decision_tree, train_test_split, bin_series, prettify_data
+from data_analysis import generate_genre_wordcloud, generate_feature_wordcloud, visualize_decitree, merge_onehot
 
 # Data Anal Pkgs
 import pandas as pd 
@@ -61,7 +61,12 @@ Performing this analysis, we can see the following feature importance:
 """)
 
 # Simple bar chart of feature importance.
-ft_imp = load_data("FeatureImportance", pretty=True)
+ft_imp = load_data("FeatureImportance")
+ft_imp = ft_imp[ft_imp['genre'] == 'All']
+ft_imp.drop('genre', axis=1, inplace=True)
+ft_imp = merge_onehot(ft_imp, 'feature', ['genre', 'key', 'mode', 'time_signature'])
+ft_imp = prettify_data(ft_imp)
+print(ft_imp.head())
 
 chart = alt.Chart(ft_imp).mark_bar().encode(
     y=alt.Y("Feature:N", sort="-x", title="Feature"),
@@ -88,7 +93,7 @@ let's examine the popularity of each genre:
 """)
 
 data = load_data("SpotifyFeatures")
-data = data.groupby("genre").mean()
+data = data.groupby("genre").mean(numeric_only=False)
 data = data.sort_values(by="popularity", ascending=False).reset_index()
 
 # Quick altair chart of most popular genres
@@ -128,14 +133,15 @@ extremes will help us determine what differentiates good from great.
 # input select box for genre
 genre = st.selectbox(
     'Select a genre',
-    load_data("SpotifyFeatures", pretty=False)['genre'].unique()
+    load_data("SpotifyFeatures").sort_values(by='popularity', ascending=False)['genre'].unique()
 )
 
 # Create a plot of the feature averages for the selected genre,
 # faceted on popularity category
 @st.cache_data(show_spinner=True)
 def gen_genredata_plot(genre):
-    genre_data = load_data("SpotifyFeatures", pretty=True)
+    genre_data = load_data("SpotifyFeatures")
+    genre_data = prettify_data(genre_data)
     genre_data = genre_data.where(genre_data['Genre'] == genre).dropna()
     genre_data = genre_data.sort_values(by='Popularity')
     genre_data['Popularity'] = bin_series(genre_data['Popularity'], {'Unpopular': 25, 'Popular': 60, 'Hits': 15})
@@ -235,7 +241,8 @@ We have omitted categorical data, such as genre and artist name, as these have n
 numeric values associated and therefore do not contribute to the correlation matrix.
 """)
 
-sp_dat = load_data("SpotifyFeatures", categorical=True, pretty=True)
+sp_dat = load_data("SpotifyFeatures")
+sp_dat = prettify_data(sp_dat)
 corr = sp_dat.corr()
 mask = np.diag(np.ones(len(corr)))
 sns.heatmap(corr, mask=mask, cmap='YlGnBu', annot=False, vmin=-1, vmax=1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": 0.6})

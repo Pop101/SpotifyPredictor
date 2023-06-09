@@ -14,6 +14,7 @@ from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn import preprocessing
 
 from dtreeviz.trees import dtreeviz
 from wordcloud import WordCloud
@@ -25,37 +26,91 @@ def train_test_split(df, frac=0.2):
     train = df.drop(index=test.index)
     return train, test
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=False)
 def __load_data(name):
-    """Loads data. Private, exists to optimise caching"""
+    """Loads data. Private, exists to optimize caching"""
     return pd.read_csv(f"Data/{name}.csv")
 
 
 @st.cache_data(show_spinner=True)
-def load_data(name, categorical=True, pretty=False):
+def load_data(name, parse_categories=False):
     """Loads a given CSV by name from the ./Data folder. Optionally converts to categorical or prettifies strings"""
     df = __load_data(name)
     
-    if pretty:
-        def strfix(str):
-            str = str.replace("_", " ").title().strip()
-            str_no_shorts = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str).strip()
-            return str_no_shorts if len(str_no_shorts) > 0.5 * len(str) else str
-        
-        # Replace all strings in the dataframe with a prettier version, including the index
+    if parse_categories:
+        # One-hot encode all categorical columns
+        additional_columns = []
+        columns_to_drop = []
         for col in df.columns:
             if df[col].dtype in (object, str):
-                df[col] = df[col].map(strfix)
-        df = df.rename(columns=strfix)
-    
-    if not categorical:
-        for col in df.columns:
-            if df[col].dtype in (object, str):
-                df[col] = pd.Categorical(df[col]).codes
+                # If there are too many (>05%) unique values, don't one-hot encode
+                if len(df[col].unique()) < 0.05 * len(df[col]):
+                    additional_columns.append(pd.get_dummies(df[col], prefix=col))
+                    columns_to_drop.append(col)
+                else:
+                    df[col] = pd.Categorical(df[col]).codes
+                
+        df = df.drop(columns_to_drop, axis=1)
+        df = pd.concat([df] + additional_columns, axis=1)
                 
     return df
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=False)
+def prettify_data(df):
+    used_strs = set()
+    def strfix(str_):
+        str_ = str_.replace("_", " ").title().strip()
+        str_no_shorts = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str_).strip()
+        
+        if len(str_no_shorts) > int(0.7 * len(str_)) and str_no_shorts not in used_strs:
+            used_strs.add(str_no_shorts)
+            return str_no_shorts
+        else:
+            used_strs.add(str_)
+            return str_
+    
+    # Replace all strings in the dataframe with a prettier version, including the index
+    for col in df.columns:
+        if df[col].dtype in (object, str):
+            df[col] = df[col].map(strfix)
+    df = df.rename(columns=strfix)
+    return df
+
+@st.cache_data(show_spinner=False)
+def merge_onehot(df, column, features, remove=True):
+    if isinstance(features, str):
+        features = [features]
+    
+    rows_to_remove = list()
+    for cat in features:
+        cat = f"{cat}_"
+        
+        # Extract all rows beginnign w/ given cat
+        cat_rows = [feat for feat in df[column] if str(feat).startswith(cat)]
+        cat_rows = df[df[column].isin(cat_rows)]
+        
+        rows_to_remove += cat_rows.index.tolist()
+        
+        # Set all features in cat_rows to the cat name
+        for row in cat_rows.index:
+            cat_rows.at[row, column] = cat[:-1]
+        
+        # Calculate the median of cat_rows
+        float_aggregator = lambda x: x.quantile(0.75) # 'median'
+        cat_rows = cat_rows.groupby(column).agg({
+            **{col: 'first' for col in df.columns},
+            **{col: float_aggregator for col in df.columns if is_numeric(df[col])}  
+        })
+        
+        # Append to the dataframe
+        df = pd.concat([df, cat_rows], axis=0)
+    
+    if remove:
+        df = df.drop(rows_to_remove, axis=0)
+    
+    return df    
+    
+@st.cache_data(show_spinner=False)
 def __category_keys(df):
     """
     Returns a function that converts a categorical dataframe back to strings
@@ -82,6 +137,15 @@ def categorical_to_original(df):
     """
     return __category_keys(df)(df)
 
+@st.cache_data(show_spinner=True)
+def is_numeric(column):
+    try:
+        pd.to_numeric(column)
+        return True
+    except ValueError:
+        return False
+    
+@st.cache_data(show_spinner=True)
 def bin_series(series, bins):
     """
     Bins a series of data by percental bins
@@ -131,7 +195,7 @@ def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     Visualises a decision tree
     """
     if readable_df is None:
-        readable_df = df
+        readable_df = prettify_data(df)
     if isinstance(cmap, str):
         cmap = cm.get_cmap(cmap)
     
@@ -189,7 +253,7 @@ def generate_wordcloud(input, width=800, height=400, colormap='YlGnBu'):
 # --- Static, Specific Visualisations --- #
 @st.cache_data(show_spinner=True)
 def generate_genre_wordcloud():
-    data = load_data("SpotifyFeatures", categorical=True)
+    data = load_data("SpotifyFeatures", parse_categories=False)
     data = data.groupby('genre').mean()
     word_weights = data['popularity'].to_dict()
     return generate_wordcloud(word_weights)
@@ -210,44 +274,65 @@ def hash_matches_saved(hash):
     if not os.path.exists("Data/hash.txt"): return False
     return open("Data/hash.txt").read() == hash
 
-df = load_data("SpotifyFeatures", categorical=True)
+df = load_data("SpotifyFeatures", parse_categories=False)
 dataset_hash = hashlib.new('md5')
 dataset_hash.update(df.to_csv().encode('utf-8'))
 dataset_hash.update(open("data_analysis.py").read().encode('utf-8'))
 dataset_hash = dataset_hash.hexdigest()
 if not hash_matches_saved(dataset_hash):
-    df_cat = load_data("SpotifyFeatures", categorical=False)
-    
-    print("Fitting with LASSO")
-    lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.8, random_state=42, warm_start=True))
-    lasso.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
-    
-    print("Fitting with Random Forest. May take up to 3min")
-    forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=10, random_state=42, warm_start=True))
-    forest.fit(df_cat.drop('popularity', axis=1), df_cat['popularity'])
-    
-    print("Fitting PCA importance")
-    pca = make_pipeline(StandardScaler(), PCA(n_components=17))
-    pca.fit(df_cat.drop('popularity', axis=1))
-    
-    # Create a dataframe of feature importance
-    feature_importance = pd.DataFrame({
-        'feature': df.drop('popularity', axis=1).columns,
-        'lasso_importance': lasso.steps[1][1].coef_,
-        'randomforest_importance': forest.steps[1][1].feature_importances_,
-        'pcadims_importance': pca.steps[1][1].explained_variance_ratio_
+    df = load_data("SpotifyFeatures")
+    df_cat = load_data("SpotifyFeatures", parse_categories=True)
+    df_no_pop = df_cat.drop('popularity', axis=1)
+    feature_importance =  pd.DataFrame({
+        'feature': list(),
+        'genre': list(),
+        'lasso_importance': list(),
+        'randomforest_importance': list(),
     })
     
-    # Add a column for the average importance, standardizing each column before averaging
-    standard_rf_importance = (feature_importance['randomforest_importance'] - feature_importance['randomforest_importance'].mean()) / feature_importance['randomforest_importance'].std()
-    standard_lasso_importance = (feature_importance['lasso_importance'] - feature_importance['lasso_importance'].mean()) / feature_importance['lasso_importance'].std()
-    standard_pcadims_importance = (feature_importance['pcadims_importance'] - feature_importance['pcadims_importance'].mean()) / feature_importance['pcadims_importance'].std()
+    for genre in ['All'] + list(df['genre'].unique()):
+        print(genre)
+        
+        # Filter on genre
+        df_genre = df_cat[df_cat['genre_'+genre] == 1] if genre != 'All' else df_cat
+        df_genre_no_pop = df_genre.drop('popularity', axis=1)
     
-    feature_importance['avg_importance'] = (abs(standard_rf_importance) + abs(standard_lasso_importance) + abs(standard_pcadims_importance)) / 3
-    feature_importance = feature_importance.sort_values('avg_importance', ascending=False)
+        print("Fitting with LASSO")
+        lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.6, random_state=42, warm_start=True))
+        lasso.fit(df_genre_no_pop, df_genre['popularity'])
+    
+        print("Fitting with Random Forest. May take up to 3min")
+        forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=40, random_state=42, warm_start=True))
+        forest.fit(df_genre_no_pop, df_genre['popularity'])
+    
+        # Create a dataframe of feature importance
+        genre_ft_imp = pd.DataFrame({
+            'feature': df_no_pop.columns,
+            'genre': genre,
+            'lasso_importance': lasso.steps[1][1].coef_,
+            'randomforest_importance': forest.steps[1][1].feature_importances_,
+        })
+        
+        # Gaussianize the feature importance
+        for col in ['lasso_importance', 'randomforest_importance']:
+            #genre_ft_imp[col] = preprocessing.scale(feature_importance[col])
+            signs = np.sign(genre_ft_imp[col])
+            genre_ft_imp[col] = np.abs(genre_ft_imp[col])
+            genre_ft_imp[col] = preprocessing.MinMaxScaler(feature_range=(0,1)).fit_transform(genre_ft_imp[col].values.reshape(-1,1))
+            genre_ft_imp[col] = genre_ft_imp[col] * signs
+            
+        # Make avg column
+        genre_ft_imp['avg_importance'] = 2*abs(genre_ft_imp['randomforest_importance']) + abs(genre_ft_imp['lasso_importance'])
+        genre_ft_imp['avg_importance'] /= 3
+        
+        # Append to the feature importance dataframe
+        feature_importance = pd.concat([feature_importance, genre_ft_imp], axis=0)
+    
     
     # Save the feature importance DB
     feature_importance.to_csv("Data/FeatureImportance.csv", index=False)
+    
+    # Now, attempt to remerge the results of the one-hot encodings
     
     # Save the hash
     with open("Data/hash.txt", "w") as f:
