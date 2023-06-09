@@ -1,7 +1,6 @@
 import altair as alt
 
 def generate_vega_theme():
-    # Define the theme
     return {
         "config": {
             "background": "white",
