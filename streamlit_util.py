@@ -223,7 +223,6 @@ def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500p
 
     initial_position = list(initial_position)
     initial_position = [str(x).strip() for x in initial_position]
-    print(initial_position)
     initial_position = [x if re.search(f"({'|'.join(CSS_UNITS)})$", x) else f"{x}px" for x in initial_position]
     
     # Wrap the html
