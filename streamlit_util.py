@@ -4,6 +4,9 @@ import numpy as np
 from streamlit.components.v1 import html
 import os
 import base64
+import re
+
+CSS_UNITS = ['cm', 'mm', 'in', 'px', 'pt', 'pc', 'em', 'ex', 'ch', 'rem', 'vw', 'vh', 'vmin', 'vmax', '%']
 
 def add_image(image, caption="", width=0, height=0):
     if type(image) == str:
@@ -217,16 +220,16 @@ def render_draggable(raw_html, zoom_factor:float=1.0, container_height:str="500p
     # Quick initial position validation
     if len(initial_position) != 2:
         raise ValueError("initial_position must be a tuple of 2 elements")
+
     initial_position = list(initial_position)
-    if initial_position[0][0] not in ('+', '-'):
-        initial_position[0] = '-' + initial_position[0]
-    if initial_position[1][0] not in ('+', '-'):
-        initial_position[1] = '-' + initial_position[1]
+    initial_position = [str(x).strip() for x in initial_position]
+    print(initial_position)
+    initial_position = [x if re.search(f"({'|'.join(CSS_UNITS)})$", x) else f"{x}px" for x in initial_position]
     
     # Wrap the html
     wrapped = f"""
          <div id="container" style='overflow: hidden; width: 100%; height: 100%; position: fixed; background-color:{background_color}; top:0; bottom:0; left:0; right:0;'>
-            <div id="draggable" style='position: relative; transform: scale({zoom_factor}); top:{initial_position[0]}; left:{initial_position[1]};'>
+            <div id="draggable" style='position: absolute; transform: scale({zoom_factor}); transform-origin: 50% 50%; top: calc(50% + -1000px + {initial_position[0]}); left: calc(50% + -1000px + {initial_position[1]}); width: 2000px; height: 2000px; display: flex; align-items: center; justify-content: center;'>
                 {raw_html}
             </div>
         </div>
