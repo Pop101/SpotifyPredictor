@@ -20,12 +20,14 @@ alt.themes.enable('cs')
 sns.set_theme(style="whitegrid")
 
 # Setup style and title
-st.set_page_config(
-    page_title="Song Popularity Analysis",
-    page_icon="📻", # Can also be an image. TODO make one
-    initial_sidebar_state="expanded",
-    menu_items={} # menu gets deleted
-)
+try:
+    st.set_page_config(
+        page_title="Song Popularity Analysis",
+        page_icon="📻", # Can also be an image. TODO make one
+        initial_sidebar_state="expanded",
+        menu_items={} # menu gets deleted
+    )
+except: pass
 
 load_css("style-inject.css")
 
@@ -66,7 +68,6 @@ ft_imp = ft_imp[ft_imp['genre'] == 'All']
 ft_imp.drop('genre', axis=1, inplace=True)
 ft_imp = merge_onehot(ft_imp, 'feature', ['genre', 'key', 'mode', 'time_signature'])
 ft_imp = prettify_data(ft_imp)
-print(ft_imp.head())
 
 chart = alt.Chart(ft_imp).mark_bar().encode(
     y=alt.Y("Feature:N", sort="-x", title="Feature"),
@@ -118,8 +119,9 @@ in the recent decade.
 
 add_image(generate_feature_wordcloud(), caption="Word cloud of feature importance")
 
+
 # Create a Series of Bars for each feature
-header("Genre Analysis")
+header("Genre Analysis", element="h1")
 
 st.markdown("""
 Breaking down genres, we can examine the feature profile specific to each to
@@ -131,9 +133,15 @@ extremes will help us determine what differentiates good from great.
 """)
 
 # input select box for genre
+# First, create a list of genres by avg. popularity
+genres_by_pop = load_data("SpotifyFeatures").groupby("genre").mean(numeric_only=False)
+genres_by_pop = genres_by_pop.sort_values(by="popularity", ascending=False).reset_index()
+genres_by_pop = prettify_data(genres_by_pop)
+
+# Now, allow user selection
 genre = st.selectbox(
     'Select a genre',
-    load_data("SpotifyFeatures").sort_values(by='popularity', ascending=False)['genre'].unique()
+    genres_by_pop['Genre'].unique()
 )
 
 # Create a plot of the feature averages for the selected genre,
@@ -193,6 +201,25 @@ Note how it changes within each facet, as the feature profile
 often determines the popularity of a song its genre.
 """)
 
+# Plot Feature Importance again, but for the selected genre & with onehot this time
+top_n = 5
+ft_imp = load_data("FeatureImportance")
+ft_imp = ft_imp[prettify_data(ft_imp)['Genre'] == genre]
+ft_imp.drop('genre', axis=1, inplace=True)
+ft_imp = merge_onehot(ft_imp, 'feature', ['genre'])
+ft_imp = ft_imp[ft_imp['feature'] != 'genre']
+ft_imp = prettify_data(ft_imp)
+
+chart = alt.Chart(ft_imp).mark_bar().encode(
+    y=alt.Y("Feature:N", sort="-x", title="Feature"),
+    x=alt.X("Importance:Q", title="Importance", axis=alt.Axis(labels=False)),
+    color=alt.Color("Importance", legend=None, scale=alt.Scale(scheme="goldgreen")),
+    tooltip=["Feature", "Importance"]
+).properties(
+    title=f"Top Features for {genre} Songs",
+)
+st.altair_chart(chart, use_container_width=True, theme=None)
+
 
 # Create an interactive decision tree
 header("Interactive Decision Tree", element="h2")
@@ -203,22 +230,24 @@ a machine learning algorithm that uses a series of yes/no questions
 to classify data. 
 """)
 
-pruned_data = load_data("SpotifyFeatures").drop(
+pruned_data = load_data("SpotifyFeatures", parse_categories=True).drop(
     # These columns are not needed for the decision tree - they are illegible to a user
-    ['artist_name', 'track_name', 'track_id', 'key', 'mode', 'time_signature', 'genre'],
+    ['artist_name', 'track_name', 'track_id'],
     axis=1
-).sort_values(by='popularity')
+)
+
+pruned_data = pruned_data[pruned_data[f'genre_{genre}'] == 1]
 
 #  Bin the popularity scores
 pruned_data_readable = pruned_data.copy()
-pruned_data['popularity'] = bin_series(pruned_data['popularity'], {1: 15, 2: 60, 3: 15})
+pruned_data['popularity'] = bin_series(pruned_data['popularity'], {1: 15, 2: 60, 3: 25})
 pruned_data_readable['popularity'] = pruned_data['popularity'].replace({1: "Unpopular", 2: "Popular", 3: "Very Popular"})
 
 # Train and visualize the decision tree
-train, test = train_test_split(pruned_data, 0.3)
-d_tree = train_decision_tree(train, 'popularity', prune=True, max_depth=4)
+train, test = train_test_split(pruned_data, 0.1)
+d_tree = train_decision_tree(train, 'popularity', prune=True, max_depth=4, criterion='entropy')
 viz_svg = visualize_decitree(d_tree, train, 'popularity', pruned_data_readable, cmap='YlGnBu')
-render_draggable(viz_svg, zoom_factor=1.7, initial_position=('+230px', '225px'))
+render_draggable(viz_svg, zoom_factor=1.7, initial_position=('250px', 0))
 
 # Show the accuracy of the decision tree
 test_only_hits = test[test['popularity'] == 3]
@@ -238,27 +267,3 @@ A more complex model, such as a neural network, could be used to improve
 this accuracy, however, it would be much more difficult to interpret and explain.
 """)
 
-# Create a heatmap of feature correlations
-header("Individual Feature Correlations")
-
-st.markdown("""
-We can break down the correlations between features to see how they interact.
-We have omitted categorical data, such as genre and artist name, as these have no
-numeric values associated and therefore do not contribute to the correlation matrix.
-""")
-
-sp_dat = load_data("SpotifyFeatures")
-sp_dat = prettify_data(sp_dat)
-corr = sp_dat.corr(numeric_only=True)
-mask = np.diag(np.ones(len(corr)))
-sns.heatmap(corr, mask=mask, cmap='YlGnBu', annot=False, vmin=-1, vmax=1, center=0, square=True, linewidths=.5, cbar_kws={"shrink": 0.6})
-st.pyplot()
-
-st.markdown("""
-Most feature-feature correlations are extremely explainable.
-Energy and loudness are extremely correlated, as are danceability and valence.
-Likewise, liveness and speachiness are correlated, as most live performances involve
-significant singing and may include short introductions or interludes.
-Loudness and acousticness are negatively correlated; it is simply harder to be loud
-with acoustic instruments.
-""")
