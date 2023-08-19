@@ -57,23 +57,51 @@ def load_data(name, parse_categories=False):
 
 @st.cache_data(show_spinner=False)
 def prettify_data(df):
-    used_strs = set()
+    # We want to shorten all strings to a more readable form
+    # To do this, we do two things:
+    # 1. replace all _ with " " and title case
+    # 2. remove all words that are 3 characters or less IFF they make up leq 30% of the string
+    # Step 2 causes a lot of collisions
+    # To address this, we will keep track of transformations used
+    # Stored as follows: Transformation (A->1) as (short_to_org[1] = A)
+    # If a short is already in use, use str_ and add to to_revert
+    short_to_org = dict()
+    to_revert = set()
     def strfix(str_):
         str_ = str_.replace("_", " ").title().strip()
-        str_no_shorts = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str_).strip()
+        shortstr = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str_).strip()
         
-        if len(str_no_shorts) > int(0.7 * len(str_)) and str_no_shorts not in used_strs:
-            used_strs.add(str_no_shorts)
-            return str_no_shorts
+        if len(shortstr) > int(0.7 * len(str_)) and shortstr not in short_to_org:
+            if str_ in short_to_org and short_to_org[str_] != str_:
+                to_revert.add(str_)
+                return str_
+            short_to_org[shortstr] = str_
+            return shortstr
         else:
-            used_strs.add(str_)
+            # If key already exists, we must revert existing keys
+            if shortstr in short_to_org:
+                to_revert.add(shortstr)
             return str_
+        
     
     # Replace all strings in the dataframe with a prettier version, including the index
     for col in df.columns:
         if df[col].dtype in (object, str):
             df[col] = df[col].map(strfix)
+    
     df = df.rename(columns=strfix)
+    
+    # Revert all collisions    
+    def revert_collision(x):
+        if x in to_revert:
+            return short_to_org.get(x, x)
+        return x
+    
+    for col in df.columns:
+        if df[col].dtype in (object, str):
+            df[col] = df[col].map(revert_collision)
+    df = df.rename(columns=revert_collision)
+    
     return df
 
 @st.cache_data(show_spinner=False)
@@ -282,7 +310,12 @@ dataset_hash = dataset_hash.hexdigest()
 if not hash_matches_saved(dataset_hash):
     df = load_data("SpotifyFeatures")
     df_cat = load_data("SpotifyFeatures", parse_categories=True)
+    
+    df = df.drop(['track_id', 'track_name'], axis=1)
+    df_cat = df_cat.drop(['track_id', 'track_name'], axis=1)
+    
     df_no_pop = df_cat.drop('popularity', axis=1)
+    
     feature_importance =  pd.DataFrame({
         'feature': list(),
         'genre': list(),
