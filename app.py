@@ -205,9 +205,10 @@ often determines the popularity of a song its genre.
 top_n = 5
 ft_imp = load_data("FeatureImportance")
 ft_imp = ft_imp[prettify_data(ft_imp)['Genre'] == genre]
-ft_imp.drop('genre', axis=1, inplace=True)
+ft_imp.drop(['genre'], axis=1, inplace=True)
 ft_imp = merge_onehot(ft_imp, 'feature', ['genre'])
 ft_imp = ft_imp[ft_imp['feature'] != 'genre']
+ft_imp = merge_onehot(ft_imp, 'feature', ['key','mode','time_signature'])
 ft_imp = prettify_data(ft_imp)
 
 chart = alt.Chart(ft_imp).mark_bar().encode(

@@ -104,8 +104,7 @@ def prettify_data(df):
     
     return df
 
-@st.cache_data(show_spinner=False)
-def merge_onehot(df, column, features, remove=True):
+def merge_onehot(df, column, features, aggregator='q3', remove=True):
     if isinstance(features, str):
         features = [features]
     
@@ -124,10 +123,16 @@ def merge_onehot(df, column, features, remove=True):
             cat_rows.at[row, column] = cat[:-1]
         
         # Calculate the median of cat_rows
-        float_aggregator = lambda x: x.quantile(0.75) # 'median'
+        if   aggregator == 'q3': aggregator = lambda x: x.quantile(0.75)
+        elif aggregator == 'q1': aggregator = lambda x: x.quantile(0.25)
+        elif aggregator in ('mean', 'q2'): aggregator = np.mean
+        elif aggregator == 'median': aggregator = np.median
+        elif type(aggregator) == 'str':
+            raise ValueError(f'Aggregator {aggregator} not recognized')
+        
         cat_rows = cat_rows.groupby(column).agg({
             **{col: 'first' for col in df.columns},
-            **{col: float_aggregator for col in df.columns if is_numeric(df[col])}  
+            **{col: aggregator for col in df.columns if is_numeric(df[col])}  
         })
         
         # Append to the dataframe
