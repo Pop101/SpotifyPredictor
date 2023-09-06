@@ -245,6 +245,7 @@ while unpopular ones are the bottom 25%. Looking at these
 extremes will help us determine what differentiates good from great.
 """)
 
+# TODO: figure out why this is inconsistent (different on first generation vs refresh)
 st.altair_chart(feature_importance_genre(genre), use_container_width=True, theme=None)
 
 

@@ -59,7 +59,7 @@ def calculate_hash():
         "Modules/"
     ]).hexdigest()
 
-if not hash_matches_saved(calculate_hash()) and False:
+if not hash_matches_saved(calculate_hash()):
     print("Hash of data and modules differs from saved hash")
     
     # Preprocess all datasets
