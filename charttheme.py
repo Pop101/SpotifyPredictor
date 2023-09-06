@@ -26,6 +26,15 @@ def generate_vega_theme():
                 "labelFont": "Helvetica",
                 "labelFontSize": 12
             },
+            "legend": {
+                "labelColor": "black",
+                "titleColor": "black",
+                "titleFont": "Helvetica",
+                "titleFontSize": 12,
+                "titleFontWeight": "bold",
+                "labelFont": "Helvetica",
+                "labelFontSize": 10
+            },
             "view": {
                 "stroke": "transparent",
                 "padding": {'left': 20, 'right': 20, 'top': 60, 'bottom': 5},

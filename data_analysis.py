@@ -21,6 +21,35 @@ from wordcloud import WordCloud
 
 from tree_util import prune_duplicate_leaves
 
+def tostr(x):
+    str_x = str(x)
+    if isinstance(x, str): return x
+    
+    # If X is a number, return it with commas
+    if re.match(r'^-?\d+$', str_x):
+        return f"{int(str_x):,}"
+    elif re.match(r'^-?\d+(?:\.\d+)?$', str_x):
+        return f"{float(str_x):,}"
+    
+    # If X is a collection and not a string
+    if hasattr(x, '__iter__') or hasattr(x, '__next__'):
+        lst = list(map(tostr, x))
+        if len(lst) == 0: return "None"
+        elif len(lst) == 1: return lst[0]
+        elif len(lst) == 2: return f"{lst[0]} and {lst[1]}"
+        else: return f"{', '.join(lst[:-1])}, and {lst[-1]}"
+    
+    # If X is a boolean
+    if isinstance(x, bool):
+        if x: return "yes"
+        else: return "no"
+        
+    # If X is None
+    if x is None: return "None"
+    
+    # Otherwise, just return the string (we tried our best)
+    return str_x
+
 def train_test_split(df, frac=0.2):
     test = df.sample(frac=frac, axis=0, random_state=42)
     train = df.drop(index=test.index)
@@ -68,7 +97,7 @@ def prettify_data(df):
     short_to_org = dict()
     to_revert = set()
     def strfix(str_):
-        str_ = str_.replace("_", " ").title().strip()
+        str_ = str(str_).replace("_", " ").title().strip()
         shortstr = re.sub(r'(\s|^).{0,3}(?=\s|$)', '', str_).strip()
         
         if len(shortstr) > int(0.7 * len(str_)) and shortstr not in short_to_org:
@@ -181,15 +210,23 @@ def is_numeric(column):
 @st.cache_data(show_spinner=True)
 def bin_series(series, bins):
     """
-    Bins a series of data by percental bins
-    `bins` can be a dict of {bin_name: percent} or a list of bin values
-    Lists will be distributed evenly
+    Bins a series of data by bins by percentiles
+    `bins` can be:
+    - A dict of {bin_name: % of values}
+    - A list of bin names
+    In this case, bins will be evenly spaced
+    - An int of the number of bins
+    Again, bins will be evenly spaced
+    
     All bins will be assigned low-to-high (eg. first bin will be lowest values)
     """
+    if isinstance(bins, int):
+        bins = list(f"Bin {x}" for x in range(0, bins))
     if isinstance(bins, list):
+        count = 0
         bins = {bin: 1/len(bins) for bin in bins}
     if not isinstance(bins, dict):
-        raise TypeError("bins must be a dict or list")
+        raise TypeError("bins must be int, dict or list")
     
     # Quick normalize
     sum_bins = sum(bins.values())
@@ -198,6 +235,9 @@ def bin_series(series, bins):
     # Make the bins monotonic
     bins = {bin: sum(list(bins.values())[:i+1]) for i, bin in enumerate(bins)}
     
+    # Quick bin clamp (in case of float round error 1.00000001s)
+    bins = {bin: min(1, percent) for bin, percent in bins.items()}
+        
     # Pad bins with 0 and 1
     if 0 not in bins.values():
         percentiles = [0] + list(bins.values())
@@ -205,6 +245,12 @@ def bin_series(series, bins):
     else:
         percentiles = list(bins.values())
         labels = list(bins.keys())[1:]
+    
+    print(bins)
+    print(percentiles)
+    print(labels)
+    print(len(percentiles))
+    print(len(labels))
     
     # TODO: remove duplicate percentiles and match labels
     
@@ -287,7 +333,7 @@ def generate_wordcloud(input, width=800, height=400, colormap='YlGnBu'):
 @st.cache_data(show_spinner=True)
 def generate_genre_wordcloud():
     data = load_data("SpotifyFeatures", parse_categories=False)
-    data = data.groupby('genre').mean()
+    data = data.groupby('genre').agg({'popularity': 'mean'})
     word_weights = data['popularity'].to_dict()
     return generate_wordcloud(word_weights)
 
@@ -370,7 +416,8 @@ if not hash_matches_saved(dataset_hash):
     # Save the feature importance DB
     feature_importance.to_csv("Data/FeatureImportance.csv", index=False)
     
-    # Now, attempt to remerge the results of the one-hot encodings
+    # More analysis: let's extract independent artists
+    # an independent artist is one that, in the 
     
     # Save the hash
     with open("Data/hash.txt", "w") as f:
