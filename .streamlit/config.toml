@@ -8,9 +8,8 @@ font = "sans serif"
 
 [server]
 headless = true
-enableCORS=true
+enableCORS=false
 enableXsrfProtection=false
-port = 8463
 
 [deprecation]
 showPyplotGlobalUse = false
