@@ -33,8 +33,8 @@ def add_file_to_hash(file_path:str, existing_hash=None):
     if not existing_hash:
         existing_hash = hashlib.new('md5')
     
-    with open(file_path, 'r') as file:
-        existing_hash.update(file.read().encode('utf-8'))
+    with open(file_path, 'rb') as file:
+        existing_hash.update(file.read())
     
     return existing_hash
 
