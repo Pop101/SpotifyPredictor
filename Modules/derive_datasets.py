@@ -1,20 +1,23 @@
-import pandas as pd
 from Modules.data_utils import load_data
 
+import pandas as pd
 import numpy as np
-from tqdm import tqdm
-from pandasql import sqldf
 import pickle
-from Levenshtein import ratio
 import re
 
+from Levenshtein import ratio
 from sklearn import preprocessing
+from tqdm.auto import tqdm
+from pandasql import sqldf
 
+tqdm.pandas()
+    
 def generate_all_datasets():
     generate_artist_info()
     generate_genre_info()
     generate_underrepresented_artists()
     find_remix_pairs()
+    calculate_remix_differences()
     generate_feature_importances()
 
 def generate_artist_info():
@@ -88,10 +91,11 @@ def find_remix_pairs():
     
     # The process to find remixes will be as follows:
     # 1. load the dataset
-    # 2. find all songs with the word "remix" in the name
+    # 2. find all songs with the word "remix" or "live" in the name
     # 3. cross join the dataset with itself, on the condition that the song name's Levenshtein ratio is > 0.9
+    # We now have a list of what is *probably* different versions of the same song
     
-    remix = re.compile(re.escape('remix'), re.IGNORECASE)
+    remix = re.compile(r'(remix)|(live)', re.IGNORECASE)
     normalize = lambda x: re.sub(r'[([][^)\]]*[)\]]|[^A-z]', '', remix.sub('', str(x)).lower())
     nratio = lambda x, y: ratio(normalize(x), normalize(y))
         
@@ -102,17 +106,58 @@ def find_remix_pairs():
     joined_songs = songs_with_remix.merge(songs, on='genre', suffixes=('', '_original'))
     
     # Calculate the Levenshtein ratio
-    joined_songs['levenshtein_ratio'] = joined_songs.apply(lambda row: nratio(row['track_name'], row['track_name_original']), axis=1)
+    print('Calculating Levenshtein ratio')
+    joined_songs['levenshtein_ratio'] = joined_songs.progress_apply(lambda row: nratio(row['track_name'], row['track_name_original']), axis=1)
     
     # Filter on the Levenshtein ratio
-    joined_songs = joined_songs[joined_songs['levenshtein_ratio'] > 0.8]
     joined_songs = joined_songs[joined_songs['track_id'] != joined_songs['track_id_original']]
-    
+    joined_songs = joined_songs[joined_songs['levenshtein_ratio'] > 0.9]
+
     # Cut out all unnecessary columns
-    joined_songs = joined_songs[['genre', 'track_name', 'track_id', 'genre_original', 'track_name_original', 'track_id_original', 'levenshtein_ratio']]
-    joined_songs.columns = ['remix_genre', 'remix_name', 'remix_id', 'original_genre', 'original_name', 'original_id', 'similarity']
+    joined_songs = joined_songs.reset_index(drop=True)
+    joined_songs.columns = ['genre', 'remix_name', 'remix_id', 'original_name', 'original_id', 'similarity']
     
     joined_songs.to_csv('Data/RemixPairs.csv', index=False)
+
+def calculate_remix_differences():
+    """Uses found remix pairs to calculate the euclidean distance between
+    the features of the remix and the original. Saves as a new column in Data/RemixPairs.csv"""
+    
+    songs = load_data("SpotifyFeatures")
+    remix_pairs = load_data("RemixPairs")
+    initial_remix_columns = list(remix_pairs.columns)
+    
+    # Join the remix pairs with the original dataset
+    remix_pairs = remix_pairs.merge(songs, left_on='remix_id', right_on='track_id', suffixes=('', '_remix'))
+    remix_pairs = remix_pairs.merge(songs, left_on='original_id', right_on='track_id', suffixes=('', '_original'))
+    
+    # Calculate the euclidean distance between the features
+    features_numeric = ['acousticness', 'danceability', 'duration_ms', 'energy', 'instrumentalness', 'liveness', 'speechiness', 'valence']
+    features_categorical = ['key', 'mode', 'time_signature']
+    
+    datapoints = list()
+    for row in tqdm(remix_pairs.itertuples()):
+        row = row._asdict()
+        org_features, remix_features = list(), list()
+        for feature in features_numeric:
+            org_features += [row[f'{feature}_original']]
+            remix_features += [row[f'{feature}']]
+        
+        for feature in features_categorical:
+            # If they are the same, add 0 to both lists
+            # otherwise, add 1 to the original and 0 to the remix
+            if row[f'{feature}_original'] == row[f'{feature}']:
+                org_features += [0]
+                remix_features += [0]
+            else:
+                org_features += [1]
+                remix_features += [0]
+        
+        datapoints += [np.linalg.norm(np.array(org_features) - np.array(remix_features))]
+    
+    remix_pairs = remix_pairs[initial_remix_columns]
+    remix_pairs['euclidean_distance'] = datapoints
+    remix_pairs.to_csv('Data/RemixPairs.csv', index=False)
 
 def generate_feature_importances():
     """Generates a table of feature importances for each genre, using LASSO and
