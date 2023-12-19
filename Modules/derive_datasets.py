@@ -121,7 +121,8 @@ def find_remix_pairs():
 
 def calculate_remix_differences():
     """Uses found remix pairs to calculate the euclidean distance between
-    the features of the remix and the original. Saves as a new column in Data/RemixPairs.csv"""
+    the features of the remix and the original. Saves as a new column in Data/RemixPairs.csv
+    Also adds remix_popularity and original_popularity columns to the dataset"""
     
     songs = load_data("SpotifyFeatures")
     remix_pairs = load_data("RemixPairs")
@@ -134,6 +135,7 @@ def calculate_remix_differences():
     # Calculate the euclidean distance between the features
     features_numeric = ['acousticness', 'danceability', 'duration_ms', 'energy', 'instrumentalness', 'liveness', 'speechiness', 'valence']
     features_categorical = ['key', 'mode', 'time_signature']
+    features_categorical_factor = 0.3
     
     datapoints = list()
     for row in tqdm(remix_pairs.itertuples()):
@@ -150,12 +152,12 @@ def calculate_remix_differences():
                 org_features += [0]
                 remix_features += [0]
             else:
-                org_features += [1]
+                org_features += [features_categorical_factor]
                 remix_features += [0]
         
-        datapoints += [np.linalg.norm(np.array(org_features) - np.array(remix_features))]
+        datapoints += [np.linalg.norm(np.array(org_features) - np.array(remix_features), ord=2)]
     
-    remix_pairs = remix_pairs[initial_remix_columns]
+    remix_pairs = remix_pairs[initial_remix_columns + ['popularity', 'popularity_original']]
     remix_pairs['euclidean_distance'] = datapoints
     remix_pairs.to_csv('Data/RemixPairs.csv', index=False)
 

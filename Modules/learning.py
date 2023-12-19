@@ -20,20 +20,18 @@ def perform_ml(n_estimators=40, random_state=42):
     raw_data = raw_data.drop(['track_id', 'track_name'], axis=1)
     data_onehot = data_onehot.drop(['track_id', 'track_name'], axis=1)
 
-    for genre in tqdm(['All'] + list(raw_data['genre'].unique())):
-        print(f"Current Genre: {genre}")
+    for genre in (pbar := tqdm(['All'] + list(raw_data['genre'].unique()))):
+        pbar.set_description(f"Genre {genre}")
         makedirs(f"Models/{genre}", exist_ok=True)
         
         # Filter on genre
         df_genre = data_onehot[data_onehot['genre_'+genre] == 1] if genre != 'All' else data_onehot
         df_genre_no_pop = df_genre.drop('popularity', axis=1)
     
-        print("\tFitting with LASSO")
         lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.6, random_state=random_state, warm_start=True))
         lasso.fit(df_genre_no_pop, df_genre['popularity'])
         pickle.dump(lasso, open(f"Models/{genre}/lasso.pkl", 'wb'))
     
-        print("\tFitting with Random Forest. May take up to 3min")
         forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, warm_start=True))
         forest.fit(df_genre_no_pop, df_genre['popularity'])
         pickle.dump(forest, open(f"Models/{genre}/forest.pkl", 'wb'))
