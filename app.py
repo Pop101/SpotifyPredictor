@@ -134,8 +134,8 @@ then use a random forest and LASSO regression to determine the most
 impactful features on song popularity.
 
 For this analysis, consider a song to be very popular if it
-lies within the top 15\% of songs in its genre, popular if it lies
-within the top 60\%, and unpopular if it lies within the bottom 25\%.
+lies within the top 15% of songs in its genre, popular if it lies
+within the top 60%, and unpopular if it lies within the bottom 25%.
 This divides the dataset into three categories, which we will use
 to determine the most impactful features on song popularity.
 

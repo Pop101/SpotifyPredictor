@@ -13,6 +13,3 @@ enableXsrfProtection=false
 
 [deprecation]
 showPyplotGlobalUse = false
-
-[global]
-dataFrameSerialization = "legacy"
