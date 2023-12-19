@@ -1,5 +1,9 @@
 __pycache__/
 *.pyc
 
+Data/hash.txt
+Models/*
+
 mock_pyarrow.py
 test.py
+poetry.lock

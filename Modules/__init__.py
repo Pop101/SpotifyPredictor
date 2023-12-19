@@ -3,6 +3,7 @@ import hashlib
 
 from Modules.data_preprocessor import fix_featureset
 from Modules.derive_datasets import generate_all_datasets
+from Modules.learning import perform_ml
 
 # On module load: Generate Feature Importance 
 # if the dataset has changed at all
@@ -56,7 +57,9 @@ def add_folder_to_hash(root_path, existing_hash=None):
 def calculate_hash():
     return add_to_hash([
         "Data/SpotifyFeatures.csv",
-        "Modules/"
+        "Modules/derive_datasets.py",
+        "Modules/data_preprocessor.py",
+        "Modules/perform_learning.py"
     ]).hexdigest()
 
 if not hash_matches_saved(calculate_hash()):
@@ -65,6 +68,10 @@ if not hash_matches_saved(calculate_hash()):
     # Preprocess all datasets
     print("Preprocessing")
     fix_featureset()
+    
+    # Perform machine learning
+    print("Performing machine learning")
+    perform_ml()
     
     # Generate all derived datasets
     print("Generating derived data")

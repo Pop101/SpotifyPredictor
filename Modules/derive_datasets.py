@@ -1,19 +1,20 @@
 import pandas as pd
 from Modules.data_utils import load_data
-from pandasql import sqldf
 
 import numpy as np
+from tqdm import tqdm
+from pandasql import sqldf
+import pickle
+from Levenshtein import ratio
+import re
 
-from sklearn.linear_model import Lasso
-from sklearn.pipeline import make_pipeline
-from sklearn.discriminant_analysis import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
 from sklearn import preprocessing
 
 def generate_all_datasets():
     generate_artist_info()
     generate_genre_info()
     generate_underrepresented_artists()
+    find_remix_pairs()
     generate_feature_importances()
 
 def generate_artist_info():
@@ -80,7 +81,39 @@ def generate_underrepresented_artists():
     # not independent artists
     indep_songs.to_csv('Data/IndepSongs.csv', index=False)
     return indep_songs
+
+def find_remix_pairs():
+    """Finds songs marked as remixes and the corresponding original song.
+    Very conservative, only matches if the remix name is VERY similar"""
     
+    # The process to find remixes will be as follows:
+    # 1. load the dataset
+    # 2. find all songs with the word "remix" in the name
+    # 3. cross join the dataset with itself, on the condition that the song name's Levenshtein ratio is > 0.9
+    
+    remix = re.compile(re.escape('remix'), re.IGNORECASE)
+    normalize = lambda x: re.sub(r'[([][^)\]]*[)\]]|[^A-z]', '', remix.sub('', str(x)).lower())
+    nratio = lambda x, y: ratio(normalize(x), normalize(y))
+        
+    songs = load_data("SpotifyFeatures")[['genre', 'track_name', 'track_id']]
+    songs_with_remix = songs[songs['track_name'].apply(lambda name: remix.search(str(name)) is not None)]
+    
+    # Cross join the dataset with itself, ensuring that genre remains the same
+    joined_songs = songs_with_remix.merge(songs, on='genre', suffixes=('', '_original'))
+    
+    # Calculate the Levenshtein ratio
+    joined_songs['levenshtein_ratio'] = joined_songs.apply(lambda row: nratio(row['track_name'], row['track_name_original']), axis=1)
+    
+    # Filter on the Levenshtein ratio
+    joined_songs = joined_songs[joined_songs['levenshtein_ratio'] > 0.8]
+    joined_songs = joined_songs[joined_songs['track_id'] != joined_songs['track_id_original']]
+    
+    # Cut out all unnecessary columns
+    joined_songs = joined_songs[['genre', 'track_name', 'track_id', 'genre_original', 'track_name_original', 'track_id_original', 'levenshtein_ratio']]
+    joined_songs.columns = ['remix_genre', 'remix_name', 'remix_id', 'original_genre', 'original_name', 'original_id', 'similarity']
+    
+    joined_songs.to_csv('Data/RemixPairs.csv', index=False)
+
 def generate_feature_importances():
     """Generates a table of feature importances for each genre, using LASSO and
     random forest classifications. Takes around 5-10 minutes. 
@@ -101,22 +134,10 @@ def generate_feature_importances():
         'randomforest_importance': list(),
     })
     
-    out_of = 1 + len(list(raw_data['genre'].unique()))
-    print("Beginning machine learning:")
-    for i, genre in enumerate(['All'] + list(raw_data['genre'].unique())):
-        print(f"Current Genre: {genre} ({i+1}/{out_of})")
-        
-        # Filter on genre
-        df_genre = data_onehot[data_onehot['genre_'+genre] == 1] if genre != 'All' else data_onehot
-        df_genre_no_pop = df_genre.drop('popularity', axis=1)
-    
-        print("\tFitting with LASSO")
-        lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.6, random_state=42, warm_start=True))
-        lasso.fit(df_genre_no_pop, df_genre['popularity'])
-    
-        print("\tFitting with Random Forest. May take up to 3min")
-        forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=40, random_state=42, warm_start=True))
-        forest.fit(df_genre_no_pop, df_genre['popularity'])
+    for genre in tqdm(['All'] + list(raw_data['genre'].unique())):        
+        # Load Models
+        lasso = pickle.load(open(f"Models/{genre}/lasso.pkl", 'rb'))
+        forest = pickle.load(open(f"Models/{genre}/forest.pkl", 'rb'))
     
         # Create a dataframe of feature importance
         genre_ft_imp = pd.DataFrame({
@@ -128,7 +149,6 @@ def generate_feature_importances():
         
         # Gaussianize the feature importance
         for col in ['lasso_importance', 'randomforest_importance']:
-            #genre_ft_imp[col] = preprocessing.scale(feature_importance[col])
             signs = np.sign(genre_ft_imp[col])
             genre_ft_imp[col] = np.abs(genre_ft_imp[col])
             genre_ft_imp[col] = preprocessing.MinMaxScaler(feature_range=(0,1)).fit_transform(genre_ft_imp[col].values.reshape(-1,1))
