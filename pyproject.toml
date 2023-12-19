@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "spotifypredictor"
+version = "0.1.0"
+description = ""
+authors = ["Pop101 <leon@leibmann.org>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+streamlit = "^1.25.0"
+pandas = "^2.0.3"
+pandasql = "^0.7.3"
+numpy = "^1.25.2"
+seaborn = "^0.12.2"
+matplotlib = "^3.7.2"
+wordcloud = "^1.9.2"
+dtreeviz = "^1.4.0"
+altair = "^4.2.2"
+tqdm = "^4.66.1"
+python-levenshtein = "^0.23.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
