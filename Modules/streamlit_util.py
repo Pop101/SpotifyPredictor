@@ -120,9 +120,15 @@ def header(text, element="h2"):
     # Create the header itself (not in the sidebar)
     st.markdown(f'<{element} id="{elem_id}" >{text}</{element}>', unsafe_allow_html=True)
     
+    # Calculate header level
+    header_level = re.sub(r'\D', '', element)
+    header_level = int(header_level) if header_level else 2
+    header_level = max(2, min(6, header_level))
+    header_level -= 1
+    
     # Create sidebar anchor link
     st.sidebar.markdown(f"""
-        <button  id={anchor_id} class="fake-button">
+        <button  id={anchor_id} class="fake-button" style="padding-left: {header_level}em;">
         {text}
         </button>
         """,
