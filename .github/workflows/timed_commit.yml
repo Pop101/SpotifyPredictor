@@ -3,6 +3,7 @@ name: Timed Commit
 on:
   schedule:
     - cron: '0 0 */5 * *'  # Run every 5 days at midnight
+  workflow_dispatch:
 
 jobs:
   commit:
