@@ -5,6 +5,7 @@ import re
 from sklearn.tree import DecisionTreeClassifier
 
 import numpy as np
+from pandasql import sqldf
 
 from Modules.tree_util import prune_duplicate_leaves
 
@@ -232,17 +233,37 @@ def bin_series(series, bins):
         percentiles = list(bins.values())
         labels = list(bins.keys())[1:]
     
-    print(bins)
-    print(percentiles)
-    print(labels)
-    print(len(percentiles))
-    print(len(labels))
-    
-    # TODO: remove duplicate percentiles and match labels
-    
     # Divide the series into bins
     return pd.cut(series, bins=series.quantile(percentiles).values, labels=labels, include_lowest=True, duplicates="drop")
 
+@cache_data(show_spinner=False)
+def bin_data(df, columns:list, granularity=10):
+    """Will bin the given rows of the dataframe into bins of size granularity across the entire dataframe's range.
+    The resulting dataframe will have only the input columns and a new column: count,
+    which is the number of rows in the original dataframe that fell into that bin."""
+    
+    df = df.copy()
+    
+    # Validate granularity
+    if not isinstance(granularity, list):
+        granularity = [granularity] * len(columns)
+    
+    # Generate the bin query
+    bin_query = "".join(
+        f"ROUND({col} / {gran}) * {gran} AS {col}, " for col, gran in zip(columns, granularity)
+    )
+    group_query = ", ".join(
+        f"ROUND({col} / {gran}) * {gran}" for col, gran in zip(columns, granularity)
+    )
+    
+    return sqldf(f"""
+    SELECT 
+        {bin_query}
+        COUNT(*) AS count
+    FROM df
+    GROUP BY {group_query}
+    """)
+    
 @cache_data(show_spinner=True)
 def train_decision_tree(df, target, prune=False, **kwargs):
     """

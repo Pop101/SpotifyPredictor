@@ -21,7 +21,12 @@ from Modules.visualizations import feature_importance_genre
 from Modules.visualizations import train_and_visualize_decision_tree
 from Modules.visualizations import generate_genre_wordcloud
 from Modules.visualizations import generate_feature_wordcloud
-
+from Modules.visualizations import generate_independent_artist_popularity
+from Modules.visualizations import generate_remixpair_overview
+from Modules.visualizations import generate_remix_genre_changes
+from Modules.visualizations import generate_remix_changes
+from Modules.visualizations import generate_maximum_song_improvement
+from Modules.visualizations import calculate_average_improvement
 
 # Setup style and title
 try:
@@ -147,7 +152,7 @@ Because LASSO regression seeks to reduce the number of features used in a model,
 it can be used to accurately discount unimportant features and thus highlight important ones.
 """)
 
-header("Observational Analysis", element="h2")
+header("Observational Analysis", element="h3")
 
 st.markdown("""
 First, we will examine the differences between very popular, popular and unpopular songs
@@ -193,7 +198,7 @@ Note how it changes within each facet, as the feature profile
 often determines the popularity of a song its genre.
 """)
 
-header("Feature Importance", element="h2")
+header("Feature Importance", element="h3")
 
 st.markdown("""
 To gauge the importance of each feature, we train both a random forest classifier and
@@ -250,7 +255,7 @@ st.altair_chart(feature_importance_genre(genre), use_container_width=True, theme
 
 
 # Create an interactive decision tree
-header("Interactive Decision Tree", element="h2")
+header("Interactive Decision Tree", element="h3")
 
 st.markdown("""
 To dive deeper into the data, we can use a decision tree,
@@ -279,6 +284,123 @@ or a neural network, could be used to reduce bias and increase accuracy.
 However, it would be much more difficult to interpret and explain.
 """)
 
-# header("Among Independent Artists")
-# Reconduct feature importance selection, but remove both
-# artist name and filter by artists whose average popularity is in the bottom 15%
+header("Among Independent Artists", element="h2")
+
+st.markdown("""
+To make a difference, let's examine smaller artists, those with less
+songs than their genre's average songs per artist. This is a good
+way to examine those who are just starting out in the music industry.
+""")
+
+st.pyplot(generate_independent_artist_popularity())
+
+st.markdown("""
+These results are interesting, as they show that smaller artists
+are more likely to create popular songs than larger artists and less likely
+to make unpopular songs.
+
+While this could be an artifact of the dataset and our definition of "small artist"
+(less released songs than genre average), it still provides an interesting
+insight into the music industry. It's possible that smaller artists
+put more time into each song, and thus they are more consistent in quality.
+""")
+
+header("Creating Change", element="h2")
+
+st.markdown("""
+Now that we understand what makes a song popular, we can use this knowledge
+to see how we can make a song more popular. 
+
+To do that, let's study specifically remixes. Remixes are a common way
+for artists to collaborate and create new versions of songs. As such,
+they provide a great insight into how a song can be changed and its resulting
+change in popularity.
+
+To identify remixes, we check a track's name against all other track's names.
+If they are more than 85% similar, as determined by their [Levenshtein ratios](https://maxbachmann.github.io/Levenshtein/levenshtein.html#ratio),
+and within the same genre, we consider them to be remixes.
+
+We can do the same for live songs, which are often released as singles.
+Becaues each live performance is slightly different and because spotify
+detects a song's "liveness," we can see the changes of these stats reflected
+in its popularity as well.
+""")
+
+st.altair_chart(generate_remixpair_overview(), use_container_width=True, theme=None)
+
+st.caption("""
+Hovering over each datapoint gives a tooltip with the original song's name along with
+the remix's name
+""")
+
+st.markdown("""
+This chart shows the difference in popularity between a remix and its original song.
+While there's no clear trend, it allows us to see a range of changes that can occur.
+It also seems that songs with a more popular original have a more popular remix - important groundwork
+for establishing comparability.
+
+Now that we've mapped every remixed and live song back to its original, we can
+compare the changes in their features. To do this, let's calculate the distance
+between each song and its original in feature space. This will give us a measure
+of how much the remixing process usually changes songs.
+""")
+st.altair_chart(generate_remix_genre_changes(), use_container_width=True, theme=None)
+
+st.markdown("""
+This chart shows the median feature distance between a song and its remixes.
+It's important to see that, across all genres, the distance seems to be fairly consistent.
+
+This means that, regardless of genre, the remixing process changes a song
+a relatively constant amount. This fact allows us to calculate the affects of remixing
+on a song's popularity overall.
+""")
+
+st.altair_chart(generate_remix_changes(), use_container_width=True, theme=None)
+
+st.markdown("""
+
+Among songs we sampled, it seems that popularity can change either direction
+as statistics change. More changes do not necessarily mean more popularity.
+
+There is an almost anomalous line at `changes=1`. However, this could be because
+if the key or mode changes, or any other categorical datapoint, that
+contributes exactly 1 to the statistic change metric.
+
+Now, using the average statistics change, we can use our machine learning model
+to determine the maximum improvement in popularity that can be achieved.
+
+We do this by, for every song, sampling 20 random 'alternate' songs, based off
+the maximum remix statistic change. This creates a non-existant remix of that song.
+Then, of those 20 songs, we find the one that is predicted to be most popular.
+""")
+
+st.altair_chart(generate_maximum_song_improvement(), use_container_width=True, theme=None)
+st.caption("""
+Maximum improvement in popularity observed for each song, with outliers >100% removed        
+""")
+
+max_improvement = calculate_average_improvement()
+st.markdown(f"""
+The result is a chart that shows the maximum improvement in popularity that can be achieved
+within each genre and overall. The average improvement across all songs is **{100 * max_improvement:.2f}%**, 
+which is a huge improvement.
+
+This shows that, while it is difficult to create a hit song, it is still
+possible to improve a song's popularity by a large amount simply through
+a fine-tuning of the mixing process.
+""")
+
+header("Next Steps", element="h2")
+
+st.markdown("""
+While the observed improvement is promising, it all relies on the
+strenght of the model. To improve the model, we could use a more complex
+model, such as a neural network, to better capture the relationships
+between features. However, this would again sacrifice interpretability.
+
+Another option would be to manually remix songs, automatically creating
+alternate versions by picking from pre-defined equalizer settings. This would
+allow us to directly measure exactly how to change and manipulate the spotify
+algorithm. Unfortunately, it seems spotify has [removed access](https://stackoverflow.com/questions/37202032/uploading-mp3-files-for-analysis-with-spotify-audio-feature-api)
+to the ability to upload mp3 files for analysis. Nevertheless a workaround is possible.
+""")

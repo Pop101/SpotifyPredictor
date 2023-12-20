@@ -10,7 +10,10 @@ from sklearn import preprocessing
 from tqdm.auto import tqdm
 from pandasql import sqldf
 
+from Modules.learning import calculate_max_change
+
 tqdm.pandas()
+np.random.seed(42)
     
 def generate_all_datasets():
     generate_artist_info()
@@ -19,6 +22,7 @@ def generate_all_datasets():
     find_remix_pairs()
     calculate_remix_differences()
     generate_feature_importances()
+    generate_maximum_changes()
 
 def generate_artist_info():
     """Generates a table of artist information, including the number of songs,
@@ -96,7 +100,7 @@ def find_remix_pairs():
     # We now have a list of what is *probably* different versions of the same song
     
     remix = re.compile(r'(remix)|(live)', re.IGNORECASE)
-    normalize = lambda x: re.sub(r'[([][^)\]]*[)\]]|[^A-z]', '', remix.sub('', str(x)).lower())
+    normalize = lambda x: re.sub(r'[([][^)\]]*[)\]]|[^A-Za-z4E00—9FFF]', '', remix.sub('', str(x)).lower())
     nratio = lambda x, y: ratio(normalize(x), normalize(y))
         
     songs = load_data("SpotifyFeatures")[['genre', 'track_name', 'track_id']]
@@ -125,7 +129,7 @@ def calculate_remix_differences():
     Also adds remix_popularity and original_popularity columns to the dataset"""
     
     songs = load_data("SpotifyFeatures")
-    remix_pairs = load_data("RemixPairs")
+    remix_pairs = pd.read_csv('Data/RemixPairs.csv')
     initial_remix_columns = list(remix_pairs.columns)
     
     # Join the remix pairs with the original dataset
@@ -133,11 +137,13 @@ def calculate_remix_differences():
     remix_pairs = remix_pairs.merge(songs, left_on='original_id', right_on='track_id', suffixes=('', '_original'))
     
     # Calculate the euclidean distance between the features
-    features_numeric = ['acousticness', 'danceability', 'duration_ms', 'energy', 'instrumentalness', 'liveness', 'speechiness', 'valence']
+    features_numeric = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'speechiness', 'valence']
     features_categorical = ['key', 'mode', 'time_signature']
-    features_categorical_factor = 0.3
+    features_categorical_factor = 1
     
-    datapoints = list()
+    distance_between_songs = list()
+    remix_distance = list()
+    original_distance = list()
     for row in tqdm(remix_pairs.itertuples()):
         row = row._asdict()
         org_features, remix_features = list(), list()
@@ -149,16 +155,20 @@ def calculate_remix_differences():
             # If they are the same, add 0 to both lists
             # otherwise, add 1 to the original and 0 to the remix
             if row[f'{feature}_original'] == row[f'{feature}']:
-                org_features += [0]
-                remix_features += [0]
+                org_features += [1]
+                remix_features += [1]
             else:
-                org_features += [features_categorical_factor]
-                remix_features += [0]
+                org_features += [1]
+                remix_features += [1-features_categorical_factor]
         
-        datapoints += [np.linalg.norm(np.array(org_features) - np.array(remix_features), ord=2)]
+        distance_between_songs += [np.linalg.norm(np.array(org_features) - np.array(remix_features), ord=2)]
+        remix_distance += [np.linalg.norm(np.array(remix_features), ord=2)]
+        original_distance += [np.linalg.norm(np.array(org_features), ord=2)]
     
     remix_pairs = remix_pairs[initial_remix_columns + ['popularity', 'popularity_original']]
-    remix_pairs['euclidean_distance'] = datapoints
+    remix_pairs['remix_distance'] = remix_distance
+    remix_pairs['original_distance'] = original_distance
+    remix_pairs['distance_between'] = distance_between_songs
     remix_pairs.to_csv('Data/RemixPairs.csv', index=False)
 
 def generate_feature_importances():
@@ -212,3 +222,40 @@ def generate_feature_importances():
     # Save the feature importance DB
     feature_importance.to_csv("Data/FeatureImportance.csv", index=False)
     return feature_importance
+
+def generate_maximum_changes(sample_percent=0.15):
+    # Calculate the maximum change,
+    # which is the average change of all remix pairs
+    
+    # Load the remix pairs
+    remix_pairs = pd.read_csv('Data/RemixPairs.csv')
+    max_change = np.quantile(remix_pairs['distance_between'], 0.5)
+    del remix_pairs
+    
+    # Load the models
+    lasso = pickle.load(open("Models/All/lasso.pkl", 'rb'))
+    forest = pickle.load(open("Models/All/forest.pkl", 'rb'))
+    
+    # Load the data, picking 10% of the data at random
+    raw_data = load_data("SpotifyFeatures")
+    data_onehot = load_data("SpotifyFeatures", parse_categories=True)
+    
+    raw_data = raw_data.drop(['track_id', 'track_name'], axis=1)
+    data_onehot = data_onehot.drop(['track_id', 'track_name'], axis=1)
+    
+    picked_rows = np.random.choice(len(data_onehot), size=int(len(data_onehot) * sample_percent), replace=False)
+    raw_data = raw_data.iloc[picked_rows]
+    data_onehot = data_onehot.iloc[picked_rows]
+    
+    data_onehot_no_pop = data_onehot.drop('popularity', axis=1)
+    
+    # Calculate the maximum change
+    def process_row(row):
+        max_change_lasso = calculate_max_change(lasso, row.values, max_change, signed=True)
+        max_change_tree = calculate_max_change(forest, row.values, max_change, signed=True)
+        
+        # Same output-combining function as in Modules/learning.py for feature importance
+        return (2 * max_change_tree + max_change_lasso) / 3
+    
+    raw_data['max_improvement'] = data_onehot_no_pop.progress_apply(process_row, axis=1)
+    raw_data.to_csv('Data/MaxChanges.csv', index=False)

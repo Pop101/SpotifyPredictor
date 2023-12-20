@@ -9,6 +9,9 @@ from sklearn.linear_model import Lasso
 from sklearn.pipeline import make_pipeline
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
+
+import warnings
+warnings.filterwarnings("ignore", module="sklearn")
     
 def perform_ml(n_estimators=40, random_state=42):
     """Performs machine learning on the Spotify dataset to determine feature
@@ -36,35 +39,26 @@ def perform_ml(n_estimators=40, random_state=42):
         forest.fit(df_genre_no_pop, df_genre['popularity'])
         pickle.dump(forest, open(f"Models/{genre}/forest.pkl", 'wb'))
 
-def calculate_max_change(model, input, max_delta, num_points=3):
+def calculate_max_change(model, input, max_delta, num_points=20, signed=False):
     """Calculates the maximum change in model output that can occur 
     if the given input is changed by at most max_delta in all dimensions."""
     
     # We can't do gradient ascent because we don't have the gradient
     # Do random search instead
-    
     dimensions = len(input)
     
-    angles = np.random.uniform(0, 2 * np.pi, size=(num_points, dimensions - 1))
-    distances = np.random.uniform(0, max_delta, size=num_points) ** (1 / (dimensions - 1))
-    
-    # Calculate points
-    points = np.zeros((num_points, dimensions))
-    points[:, 0] = distances
-    
-    for i in range(dimensions - 1):
-        points[:, i + 1] = points[:, i] * np.sin(angles[:, i])
-        points[:, i] = points[:, i] * np.cos(angles[:, i])
-
-    points += input
+    points = np.random.rand(num_points, dimensions) * 2 - 1 # can use randn instead
+    points /= np.linalg.norm(points, axis=1)[:, np.newaxis]
+    points *= max_delta
+    points = [input + point for point in points]
     
     # Calculate max change
-    current_output = model.predict(input)
-    max_change = 0
+    original_output = model.predict(np.array(input).reshape(1, -1))
+    max_change = -np.inf
     for i in range(num_points):
-        output = model.predict(points[i])
-        # TODO: check what datatype output is
-        change = np.linalg.norm(output - current_output, ord=2)
+        output = model.predict(np.array(points[i]).reshape(1, -1))
+        change = np.linalg.norm(output - original_output, ord=2)
+        change = change if not signed else np.sign(np.average(output - original_output)) * change
         max_change = max(max_change, change)
     
     return max_change
