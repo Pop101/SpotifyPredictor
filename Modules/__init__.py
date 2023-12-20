@@ -59,7 +59,7 @@ def calculate_hash():
         "Data/SpotifyFeatures.csv",
         "Modules/derive_datasets.py",
         "Modules/data_preprocessor.py",
-        "Modules/perform_learning.py"
+        "Modules/learning.py"
     ]).hexdigest()
 
 if not hash_matches_saved(calculate_hash()):
