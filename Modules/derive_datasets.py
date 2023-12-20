@@ -2,7 +2,7 @@ from Modules.data_utils import load_data
 
 import pandas as pd
 import numpy as np
-import pickle
+import joblib
 import re
 
 from Levenshtein import ratio
@@ -193,8 +193,8 @@ def generate_feature_importances():
     
     for genre in tqdm(['All'] + list(raw_data['genre'].unique())):        
         # Load Models
-        lasso = pickle.load(open(f"Models/{genre}/lasso.pkl", 'rb'))
-        forest = pickle.load(open(f"Models/{genre}/forest.pkl", 'rb'))
+        lasso = joblib.load(f"Models/{genre}/lasso.joblib")
+        forest = joblib.load(f"Models/{genre}/forest.joblib")
     
         # Create a dataframe of feature importance
         genre_ft_imp = pd.DataFrame({
@@ -233,8 +233,8 @@ def generate_maximum_changes(sample_percent=0.15):
     del remix_pairs
     
     # Load the models
-    lasso = pickle.load(open("Models/All/lasso.pkl", 'rb'))
-    forest = pickle.load(open("Models/All/forest.pkl", 'rb'))
+    lasso = joblib.load("Models/All/lasso.joblib")
+    forest = joblib.load("Models/All/forest.joblib")
     
     # Load the data, picking 10% of the data at random
     raw_data = load_data("SpotifyFeatures")
