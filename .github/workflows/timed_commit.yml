@@ -25,4 +25,9 @@ jobs:
         echo $(date) > current_date.txt
         git add current_date.txt
         git commit -m "Update current date" -m "Attempt to avoid streamlit freeze" || true
-        git push
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
