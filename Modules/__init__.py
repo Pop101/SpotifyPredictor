@@ -35,6 +35,7 @@ def add_file_to_hash(file_path:str, existing_hash=None):
     
     with open(file_path, 'rb') as file:
         existing_hash.update(file.read())
+    print(file_path, existing_hash.hexdigest())
     
     return existing_hash
 
