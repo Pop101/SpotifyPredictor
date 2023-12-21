@@ -33,11 +33,11 @@ def perform_ml(n_estimators=40, random_state=42):
     
         lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.6, random_state=random_state, warm_start=True))
         lasso.fit(df_genre_no_pop, df_genre['popularity'])
-        joblib.dump(lasso, f"Models/{genre}/lasso.joblib", compress=3)
+        joblib.dump(lasso, f"Models/{genre}/lasso.joblib", compress=('lzma', 7))
     
         forest = make_pipeline(StandardScaler(), RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, warm_start=True))
         forest.fit(df_genre_no_pop, df_genre['popularity'])
-        joblib.dump(forest, f"Models/{genre}/forest.joblib", compress=3)
+        joblib.dump(forest, f"Models/{genre}/forest.joblib", compress=('lzma', 9))
 
 def calculate_max_change(model, input, max_delta, num_points=20, signed=False):
     """Calculates the maximum change in model output that can occur 
