@@ -47,7 +47,7 @@ st.sidebar.markdown("""
     
 # Heading
 header("Song Popularity Analysis", element="h1")
-st.markdown("[Leon Leibmann](leibmann.org), Seung Won Seo, Emelie Kyes, Oscar Wang")
+st.markdown("[Leon Leibmann](https://leibmann.org), Seung Won Seo, Emelie Kyes, Oscar Wang")
 add_image(generate_genre_wordcloud())
 
 # The Page Itself
