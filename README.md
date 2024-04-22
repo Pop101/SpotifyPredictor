@@ -4,7 +4,7 @@
 Team members:
 Seung Won Seo, [Leon Leibmann](https://leibmann.org), Emelie Kyes, Oscar Wang
 
-The currently hosted and deployed! Visit it here: [spotify-data.leibmann.org](https://spotify-data.leibmann.org)
+The currently hosted and deployed! Visit it here: [spotify-data.leibmann.org](https://spotify-data.streamlit.app/)
 
 # Table of Contents
 
