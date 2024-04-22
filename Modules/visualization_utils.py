@@ -1,6 +1,6 @@
 from streamlit import cache_data
 from wordcloud import WordCloud
-from dtreeviz.trees import dtreeviz
+import dtreeviz
 
 import matplotlib.colors as colors
 import matplotlib.cm as cm
@@ -8,7 +8,7 @@ import numpy as np
 
 from Modules.data_utils import prettify_data
 
-@cache_data(show_spinner=True)
+#@cache_data(show_spinner=True)
 def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     """
     Visualizes a decision tree, given a model, a training dataset, and a target column.
@@ -16,6 +16,7 @@ def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
     used for training. If you don't pass one in, it will be generated.
     You can also optionally pass in a colormap, which will be used to color the classes.
     """
+    df = df.dropna()
     if readable_df is None:
         readable_df = prettify_data(df)
     if isinstance(cmap, str):
@@ -33,12 +34,15 @@ def visualize_decitree(_model, df, target, readable_df=None, cmap="viridis"):
         colors_list = cmap(np.linspace(0.05, 0.8, len(class_names)))
         cmap = [colors.rgb2hex(color) for color in colors_list]
     
-    viz = dtreeviz(_model, df.drop(target, axis=1), df[target],
+    viz = dtreeviz.model(_model, 
+                X_train=df.drop(target, axis=1), 
+                y_train=df[target],
                 target_name=p_target_name,
                 feature_names=feature_names, 
-                class_names=class_names,
-                colors={'classes': [cmap] * (1+len(class_names))},)
-    return viz.svg()
+                class_names=class_names
+                )
+    
+    return viz.view(colors={'classes': [cmap] * (1+len(class_names))}).svg()
 
 @cache_data(show_spinner=True)
 def generate_wordcloud(input, width=800, height=400, colormap='YlGnBu'):

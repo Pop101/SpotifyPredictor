@@ -148,10 +148,14 @@ def train_and_visualize_decision_tree(genre, max_depth=4):
 
     pruned_data = pruned_data[pruned_data[f'genre_{genre}'] == 1]
 
+    # Ensure no NaN and inf
+    pruned_data.replace([np.inf, -np.inf], np.nan, inplace=True)
+    pruned_data.dropna(inplace=True)
+    
     #  Bin the popularity scores
     pruned_data_readable = pruned_data.copy()
-    pruned_data['popularity'] = bin_series(pruned_data['popularity'], {1: 25, 2: 60, 3: 15})
-    pruned_data_readable['popularity'] = pruned_data['popularity'].replace({1: "Unpopular", 2: "Popular", 3: "Very Popular"})
+    pruned_data['popularity'] = bin_series(pruned_data['popularity'], {0: 25, 1: 60, 2: 15})
+    pruned_data_readable['popularity'] = pruned_data['popularity'].replace({0: "Unpopular", 1: "Popular", 2: "Very Popular"})
 
     # Train and visualize the decision tree
     train, test = train_test_split(pruned_data, 0.1)
@@ -159,7 +163,7 @@ def train_and_visualize_decision_tree(genre, max_depth=4):
     viz_svg = visualize_decitree(d_tree, train, 'popularity', pruned_data_readable, cmap='YlGnBu')
     
     # Gauge Accuracy
-    test_only_hits = test[test['popularity'] == 3]
+    test_only_hits = test[test['popularity'] == 2]
     accuracy = d_tree.score(test.drop('popularity', axis=1), test['popularity'])
     accuracy_hits = d_tree.score(test_only_hits.drop('popularity', axis=1), test_only_hits['popularity'])
     

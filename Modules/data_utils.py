@@ -270,6 +270,6 @@ def train_decision_tree(df, target, prune=False, **kwargs):
     Trains a decision tree on the given dataframe
     """
     model = DecisionTreeClassifier(random_state=42, **kwargs)
-    model = model.fit(df.drop(target, axis=1).values, df[target].values)
+    model.fit(df.drop(target, axis=1).values, df[target].values)
     if prune: prune_duplicate_leaves(model)
     return model
