@@ -1,74 +1,46 @@
+# SpotifyPredictor
 
-# Analysing Possible Predictors for a Song's Popularity
+An interactive analysis of which audio features are associated with song popularity. Explore the dataset, compare genres and inspect what different models pick up.
 
-Team members:
-Seung Won Seo, [Leon Leibmann](https://leibmann.org), Emelie Kyes, Oscar Wang
+[![Open GitHub issues](https://img.shields.io/github/issues/Pop101/SpotifyPredictor?style=flat-square)](https://github.com/Pop101/SpotifyPredictor/issues)
 
-The currently hosted and deployed! Visit it here: [spotify-data.leibmann.org](https://spotify-data.streamlit.app/)
+![SpotifyPredictor project cover](.github/images/readme-hero.svg)
 
-# Table of Contents
+## Table of Contents
 
-- [Analysing Possible Predictors for a Song's Popularity](#analysing-possible-predictors-for-a-songs-popularity)
-- [Table of Contents](#table-of-contents)
 - [Overview](#overview)
 - [Technologies](#technologies)
 - [Data](#data)
 - [Project Overview](#project-overview)
 - [Setup](#setup)
 
-# Overview
+## Overview
 
-This webpage uses open-source Spotify data to predict a song's success. It extracts relevant features and develops models based on metrics such as popularity and play count. Users can interact with the dataset and experiment with different models. The project aims to help musicians and music enthusiasts understand the factors that contribute to a song's success.
+Built by Seung Won Seo, [Leon Leibmann](https://leibmann.org/), Emelie Kyes and Oscar Wang. The app combines exploratory charts, genre comparisons and model visualizations. It describes associations in the dataset, not what will make a future song successful.
 
+## Technologies
 
-We used an ensemble of methods
+- [Streamlit](https://streamlit.io/)
+- [Pandas](https://pandas.pydata.org/)
+- [scikit-learn](https://scikit-learn.org/)
+- [Altair](https://altair-viz.github.io/)
+- [Graphviz](https://graphviz.org/)
 
+## Data
 
-# Technologies
+The [Spotify Tracks DB](https://www.kaggle.com/datasets/zaheenhamidani/ultimate-spotify-tracks-db) is a historical snapshot of tracks, audio features and a Spotify popularity score. Popularity is the dataset's label, not an independent measure of quality, and neither the catalog nor the score should be assumed current.
 
-To create this, we used:
+## Project Overview
 
-- [Streamlit](https://streamlit.io)
-- [Matplotlib](https://matplotlib.org)
-- [SeaBorn](https://seaborn.pydata.org)
-- [Pandas](https://pandas.pydata.org)
-- [WordCloud](https://amueller.github.io/word_cloud/)
-- [PandasSQL](https://pypi.org/project/pandasql/)
-- Elbow Grease 💪
+Compare genre signatures and feature importance, walk through a decision tree, and inspect the sections on independent artists and remixes. The results are exploratory; the remix comparisons do not establish a causal improvement in popularity.
 
-# Data
+## Setup
 
-The analysis is based on the [*Spotify Tracks DB*](https://www.kaggle.com/datasets/zaheenhamidani/ultimate-spotify-tracks-db), a dataset comprising of 232,725 randomly sample songs collected in 2019. It includes spotify's calculated features such as acousticness, danceability, energy, instrumentalness, liveness, loudness, speechiness, valence, and a song's overall popularity. This metric, reflecting a song's relative popularity on Spotify compared to others in its genre, is a close reflection of a song's actual popularity and is weighed heavily in spotify's song selection algorithm.
+The manifest targets Python 3.11 or later within 3.x. From a checkout with Poetry installed:
 
-Keep in mind that the dataset captures a snapshot of the Spotify algorithm in 2019, and certain observations may no longer apply due to evolving metrics and algorithms.
-
-# Project Overview
-
-We delved into the analysis using a combination of observational methods and machine learning. Random forests and LASSO regression played a key role in identifying crucial features, with acousticness and loudness consistently standing out as influential factors across genres.
-
-Genre-specific analyses provided nuanced insights into success metrics within each musical category. An interactive decision tree illustrated the intricacies of predicting popularity, particularly for elusive hit songs.
-
-Examining independent artists revealed an intriguing observation. Smaller creators, despite having fewer songs, exhibited a talent for producing popular tracks—suggesting that quality outweighs quantity.
-
-Expanding our focus to remixes, we compared original songs with their remixed counterparts, uncovering subtle changes that impact a track's popularity. The remixing process, regardless of genre, consistently influenced a song's features.
-
-Notably, our machine learning model predicted the maximum potential improvement in popularity through strategic remixing. The average improvement across all songs reached an impressive 25%, highlighting the impact that small changes in a song during the mixing process can make.
-
-# Setup
-
-**Requirements.txt**
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-**Poetry**
-```bash
-poetry install
+```sh
+poetry install --no-root
 poetry run streamlit run app.py
 ```
 
-Make sure both streamlit and graphviz installed correctly. If not, try
-again with conda or another build system.
-
-The website should be available at [localhost:8501](http://localhost:8501)
+Open [localhost:8501](http://localhost:8501). Some model diagrams need Graphviz. The [original hosted demo](https://spotify-data.streamlit.app/) redirected to sign-in on review; a clean setup wasn't tested.
